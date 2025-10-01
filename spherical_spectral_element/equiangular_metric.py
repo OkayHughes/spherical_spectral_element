@@ -1,3 +1,5 @@
+from .config import np
+
 def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   NFACES = cube_points.shape[0]
   top_face_mask = (np.abs(cube_points[:, 1, 1, 2] - 1.0) < 1e-10).reshape((NFACES, 1, 1))

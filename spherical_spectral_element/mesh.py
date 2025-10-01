@@ -1,4 +1,4 @@
-import numpy as np
+from config import np
 
 def gen_vert_redundancy(face_connectivity, face_position):
   vert_redundancy = dict()
