@@ -1,6 +1,5 @@
 import numpy as np
 
-nx = 15
 TESTING = True
 STRINGENT=False
 
@@ -75,7 +74,7 @@ def inv_elem_id_fn(idx):
   y_id = int(idx - face_id * nx**2 - x_id*nx)
   return face_id, x_id, y_id
 
-def gen_cube_topo():
+def gen_cube_topo(nx):
   #      E1
   #   [v1 → v2]
   #E2 [↓    ↓] E3
