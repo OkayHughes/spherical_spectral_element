@@ -1,7 +1,8 @@
-from .config import np
+from .config import np, npt
+from .math import bilinear, bilinear_jacobian
 
-
-def gen_cube_grid(face_connectivity, face_position, face_position_2d, vert_redundancy):
+def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_redundancy):
+  #temporary note: we can assume here that this is mpi-local. 
   NFACES = face_position.shape[0]
   gll_position = np.zeros(shape=(NFACES, npt, npt, 3))
   gll_jacobian = np.zeros(shape=(NFACES, npt, npt, 3, 2))
@@ -9,24 +10,6 @@ def gen_cube_grid(face_connectivity, face_position, face_position_2d, vert_redun
   gll_jacobian_2d = np.zeros(shape=(NFACES, npt, npt, 2, 2))
 
 
-
-  def bilinear(v0, v1, v2, v3, alpha, beta, out):
-    #   v0---α---v1
-    #   |    :    |
-    #   |    β    |
-    #   |    :    |
-    #   v2---α---v3
-    aprime = (alpha + 1)/2
-    bprime = (beta + 1)/2
-    top_point = aprime * v0 + (1-aprime) * v1
-    bottom_point = aprime * v2 + (1-aprime) * v3
-    out[:] = (bprime * top_point + (1-bprime) * bottom_point)[:]
-
-  def bilinear_jacobian(v0, v1, v2, v3, alpha, beta, jac_out):
-    aprime = (alpha + 1)/2
-    bprime = (beta + 1)/2
-    jac_out[:, :, 0] = 1/2.0 * (bprime * (v0 - v1) + (1-bprime) * (v2 - v3))
-    jac_out[:, :, 1] = 1/2.0 * (alpha * v0 + (1-alpha) * v1 - (alpha * v2 + (1-alpha) * v3))
 
   for i_idx in range(npt):
     for j_idx in range(npt):
@@ -48,44 +31,7 @@ def gen_cube_grid(face_connectivity, face_position, face_position_2d, vert_redun
                               face_position_2d[:, 1, :],
                               face_position_2d[:, 2, :],
                               face_position_2d[:, 3, :], alpha, beta, gll_jacobian_2d[:, i_idx, j_idx, :, :])
-  if TESTING:
-    res = np.zeros(shape=(NFACES, 2))
-    jac_test = np.zeros(shape=(NFACES, 2, 2))
-    diff_minus = np.zeros(shape=(NFACES, 2))
-    diff_plus = np.zeros(shape=(NFACES, 2))
-    for i in range(npt):
-      for j in range(npt):
-        alpha = p_points[i]
-        beta = p_points[j]
-        eps = 1e-4
-        bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta, res)
-        bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha+eps, beta, diff_plus)
-        bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha-eps, beta, diff_minus)
-        dres_dalpha = (diff_plus - diff_minus)/(2 * eps)
-        bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta+eps, diff_plus)
-        bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta-eps, diff_minus)
-        bilinear_jacobian(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta, jac_test)
-        dres_dbeta = (diff_plus - diff_minus)/(2 * eps)
-        assert(np.max(np.abs(dres_dalpha - jac_test[:, :, 0])) < 1e-7)
-        assert(np.max(np.abs(dres_dbeta - jac_test[:, :, 1])) < 1e-7)
+
 
 
   gll_jacobian_2d_inv = np.linalg.inv(gll_jacobian_2d)
