@@ -1,6 +1,6 @@
 from .context import spherical_spectral_element
 from spherical_spectral_element.config import np
-from spherical_spectral_element.cubed_sphere import face_topo, gen_cube_topo, edge_to_vert
+from spherical_spectral_element.cubed_sphere import face_topo, gen_cube_topo, edge_to_vert, gen_vert_redundancy
 from spherical_spectral_element.cubed_sphere import  TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from spherical_spectral_element.cubed_sphere import inv_elem_id_fn, elem_id_fn
 from spherical_spectral_element.cubed_sphere import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
@@ -46,3 +46,28 @@ def test_gen_cube_topo():
               print(f"elem_idx: {elem_idx}, idx_pair: {idx_pair}")
               print(f"pos1: {pos_local}, pos2: {pos_pair}")
           assert(not err)
+
+def test_vert_conn():
+  nx = 15
+  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  # test if all identified vertex pairings are correct
+  for elem_idx in vert_redundancy.keys():
+    for vert_idx in vert_redundancy[elem_idx].keys():
+      for elem_idx_pair, vert_idx_pair in vert_redundancy[elem_idx][vert_idx]:
+        assert(np.max(np.abs(face_position[elem_idx, vert_idx, :] - face_position[elem_idx_pair, vert_idx_pair, :])) < 1e-10)
+  # test if all vertex pairings were identified:
+  # NOTE: only holds for regular grid.
+  for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
+    for x_idx in range(nx):
+      for y_idx in range(nx):
+        elem_idx = elem_id_fn(nx, face_idx, x_idx, y_idx)
+        for vert_idx in range(4):
+          if ((x_idx==0 and y_idx==0 and vert_idx==0) or
+             (x_idx==nx-1 and y_idx==0 and vert_idx==1) or
+             (x_idx==0 and y_idx==nx-1 and vert_idx==2) or
+             (x_idx==nx-1 and y_idx==nx-1 and vert_idx==3)):
+            num_neighbors = 2
+          else:
+            num_neighbors = 3
+          assert(len(vert_redundancy[elem_idx][vert_idx]) == num_neighbors)

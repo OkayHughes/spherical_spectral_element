@@ -208,3 +208,39 @@ def gen_cube_topo(nx):
   return face_connectivity, face_position, face_position_2d
 
 
+def gen_vert_redundancy(nx, face_connectivity, face_position):
+  vert_redundancy = dict()
+  def wrap(elem_idx, vert_idx):
+    if elem_idx not in vert_redundancy.keys():
+      vert_redundancy[elem_idx] = dict()
+    if vert_idx not in vert_redundancy[elem_idx].keys():
+      vert_redundancy[elem_idx][vert_idx] = set()
+
+  for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
+    for x_idx in range(nx):
+      for y_idx in range(nx):
+        for edge_idx in [TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE]:
+          elem_idx = elem_id_fn(nx, face_idx, x_idx, y_idx)
+          idx_pair, edge_idx_pair, is_forwards = face_connectivity[elem_idx, edge_idx, :]
+          face_idx_pair, x_idx_pair, y_idx_pair  = inv_elem_id_fn(nx, idx_pair)
+          v0_local, v1_local = edge_to_vert(edge_idx)
+          v0_pair, v1_pair = edge_to_vert(edge_idx_pair, is_forwards=is_forwards)
+          wrap(elem_idx, v0_local)
+          wrap(elem_idx, v1_local)
+          vert_redundancy[elem_idx][v0_local].add((idx_pair, v0_pair))
+          vert_redundancy[elem_idx][v1_local].add((idx_pair, v1_pair))
+  # The following is a crude-but-concise way to ensure
+  # (elem_idx_pair, v_idx_pair) in vert_redundancy[elem_idx][v_idx]  <=>
+  # (elem_idx, v_idx) in vert_redundancy[elem_idx_pair][v_idx_pair]
+  for _ in range(MAX_VERT_DEGREE):
+    for elem_idx in vert_redundancy.keys():
+      for vert_idx in vert_redundancy[elem_idx].keys():
+        for elem_idx_pair, vert_idx_pair in vert_redundancy[elem_idx][vert_idx]:
+          vert_redundancy[elem_idx_pair][vert_idx_pair].update(vert_redundancy[elem_idx][vert_idx])
+  # filter out diagonal
+  for elem_idx in vert_redundancy.keys():
+    for vert_idx in vert_redundancy[elem_idx].keys():
+       if (elem_idx, vert_idx) in vert_redundancy[elem_idx][vert_idx]:
+        vert_redundancy[elem_idx][vert_idx].remove((elem_idx, vert_idx))
+
+  return vert_redundancy
