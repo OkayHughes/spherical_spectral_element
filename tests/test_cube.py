@@ -1,9 +1,9 @@
 from .context import spherical_spectral_element
 from spherical_spectral_element.config import np
 from spherical_spectral_element.cubed_sphere import face_topo, gen_cube_topo, edge_to_vert, gen_vert_redundancy
-from spherical_spectral_element.cubed_sphere import  TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
+from spherical_spectral_element.grid_definitions import  TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from spherical_spectral_element.cubed_sphere import inv_elem_id_fn, elem_id_fn
-from spherical_spectral_element.cubed_sphere import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
+from spherical_spectral_element.grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
 
 def test_elem_id_fns():
   nx = 15

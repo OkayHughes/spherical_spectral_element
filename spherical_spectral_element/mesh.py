@@ -1,5 +1,7 @@
-from .config import np, npt
+from .config import np, npt, DEBUG
 from .math import bilinear, bilinear_jacobian
+from .spectral import deriv
+from .grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE 
 
 def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_redundancy):
   #temporary note: we can assume here that this is mpi-local. 
@@ -13,24 +15,29 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
 
   for i_idx in range(npt):
     for j_idx in range(npt):
-        alpha = p_points[i_idx]
-        beta = p_points[j_idx]
-        bilinear(face_position[:, 0, :],
+        alpha = deriv.gll_points[i_idx]
+        beta = deriv.gll_points[j_idx]
+        gll_position[:, i_idx, j_idx, :] = bilinear(face_position[:, 0, :],
                               face_position[:, 1, :],
                               face_position[:, 2, :],
-                              face_position[:, 3, :], alpha, beta, gll_position[:, i_idx, j_idx, :])
-        bilinear(face_position_2d[:, 0, :],
+                              face_position[:, 3, :], alpha, beta)
+        gll_position_2d[:, i_idx, j_idx, :] = bilinear(face_position_2d[:, 0, :],
                               face_position_2d[:, 1, :],
                               face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta, gll_position_2d[:, i_idx, j_idx, :])
-        bilinear_jacobian(face_position[:, 0, :],
+                              face_position_2d[:, 3, :], alpha, beta)
+
+        dphys_dalpha, dphys_dbeta = bilinear_jacobian(face_position[:, 0, :],
                               face_position[:, 1, :],
                               face_position[:, 2, :],
-                              face_position[:, 3, :], alpha, beta, gll_jacobian[:, i_idx, j_idx, :, :])
-        bilinear_jacobian(face_position_2d[:, 0, :],
+                              face_position[:, 3, :], alpha, beta)
+        gll_jacobian[:, i_idx, j_idx, :, 0] = dphys_dalpha
+        gll_jacobian[:, i_idx, j_idx, :, 1] = dphys_dbeta
+        dphys_dalpha, dphys_dbeta = bilinear_jacobian(face_position_2d[:, 0, :],
                               face_position_2d[:, 1, :],
                               face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta, gll_jacobian_2d[:, i_idx, j_idx, :, :])
+                              face_position_2d[:, 3, :], alpha, beta)
+        gll_jacobian_2d[:, i_idx, j_idx, :, 0] = dphys_dalpha
+        gll_jacobian_2d[:, i_idx, j_idx, :, 1] = dphys_dbeta
 
 
 
@@ -72,13 +79,13 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
     # find only element that overlaps both vertices on edge
     elems = [x[0] for x in elem_adj_loc[idx0]]
     elem_id = list(filter(lambda x: x[0] in elems, elem_adj_loc[idx1]))
-    if TESTING:
+    if DEBUG:
       assert(len(elem_id) == 1)
     elem_idx_pair = elem_id[0][0]
     # determine which vertices element is paired to
     v0 = list(filter(lambda x: x[0] == elem_idx_pair, elem_adj_loc[idx0]))
     v1 = list(filter(lambda x: x[0] == elem_idx_pair, elem_adj_loc[idx1]))
-    if TESTING:
+    if DEBUG:
       assert(len(v0) == 1)
       assert(len(v1) == 1)
     v0 = v0[0][1]
@@ -154,49 +161,6 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
             elem_idx_pair, i_idx_pair, j_idx_pair = infer_edge(vert_redundancy[elem_idx], edge_idx, free_idx)
             wrap(elem_idx, i_idx, j_idx)
             vert_redundancy_gll[elem_idx][(i_idx, j_idx)].add((elem_idx_pair, i_idx_pair, j_idx_pair))
-  if TESTING:
-    for elem_idx in vert_redundancy_gll.keys():
-      for (i_idx, j_idx) in vert_redundancy_gll[elem_idx].keys():
-        for elem_idx_pair, i_idx_pair, j_idx_pair in vert_redundancy_gll[elem_idx][(i_idx, j_idx)]:
-          try:
-            assert(np.max(np.abs(gll_position[elem_idx][(i_idx, j_idx)] - gll_position[elem_idx_pair][(i_idx_pair, j_idx_pair)])) < 1e-10)
-          except:
-            print(f"local: {(inv_elem_id_fn(elem_idx), i_idx, j_idx)} {gll_position[elem_idx][(i_idx, j_idx)]}")
-            print(f"pair: {(inv_elem_id_fn(elem_idx_pair), i_idx_pair, j_idx_pair)} {gll_position[elem_idx_pair][(i_idx_pair, j_idx_pair)]}")
-    # note: test is only valid on quasi-uniform grid
-    for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
-      for x_idx in range(nx):
-        for y_idx in range(nx):
-          for i_idx in range(npt):
-            for j_idx in range(npt):
-              num_neighbors = 0
-              if ((x_idx == 0 and y_idx == 0 and i_idx==0 and j_idx==0) or
-                 (x_idx==0 and y_idx==nx-1 and i_idx==0 and j_idx==npt-1) or
-                 (x_idx==nx-1 and y_idx==nx-1 and i_idx==npt-1 and j_idx==npt-1) or
-                 (x_idx==nx-1 and y_idx==0 and i_idx==npt-1 and j_idx==0)):
-                num_neighbors = 2
-              elif ((i_idx==0 and j_idx == 0) or
-                    (i_idx==0 and j_idx == npt-1) or
-                    (i_idx==npt-1 and j_idx==0) or
-                    (i_idx==npt-1 and j_idx==npt-1)):
-                num_neighbors = 3
-
-              if j_idx != 0 and j_idx!=npt-1:
-                if i_idx == 0 or i_idx==npt-1:
-                  num_neighbors = 1
-              if i_idx != 0 and i_idx!=npt-1:
-                if j_idx==0 or j_idx==npt-1:
-                  num_neighbors = 1
-              elem_idx = elem_id_fn(face_idx, x_idx, y_idx)
-              if (i_idx, j_idx) in vert_redundancy_gll[elem_idx].keys():
-                assert(num_neighbors == len(vert_redundancy_gll[elem_idx][(i_idx, j_idx)]))
-              else:
-                assert(num_neighbors == 0)
   return gll_position, gll_position_2d, gll_jacobian_2d, gll_jacobian_2d_inv, vert_redundancy_gll
 
-gll_pos, gll_pos_2d, gll_to_cube_jacobian, gll_to_cube_jacobian_inv, vert_redundancy_gll = gen_cube_grid(face_connectivity, face_position, face_position_2d, vert_redundancy)
-
-
-
-print(vert_redundancy_gll)
 

@@ -29,6 +29,6 @@ class Deriv:
     self.deriv = np.dot(leg_der, coeffs)
 
 
-
+deriv = Deriv()
 
 

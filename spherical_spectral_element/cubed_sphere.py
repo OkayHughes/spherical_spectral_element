@@ -1,9 +1,8 @@
 from .config import np
+from .grid_definitions import BACKWARDS, FORWARDS
+from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
+from .grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE 
 
-
-BACKWARDS, FORWARDS = (0, 1)
-TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE = (0, 1, 2, 3, 4, 5)
-TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE = (0, 1, 2, 3)
 
 face_topo = {TOP_FACE: {TOP_EDGE: (BACK_FACE, TOP_EDGE, BACKWARDS),
                   LEFT_EDGE: (LEFT_FACE, TOP_EDGE, FORWARDS),
@@ -56,17 +55,7 @@ axis_info = {TOP_FACE: (0, 1.0, 1, -1.0),
           LEFT_FACE: (1, 1.0, 2, 1.0),
           RIGHT_FACE: (1, -1.0, 2, 1.0)}
 
-def test_face_topo():
-    #test if topology is consistent
-    for face_id in face_topo:
-      face_info = face_topo[face_id]
-      for edge_id in face_info:
-        edge_info = face_info[edge_id]
-        face_id_pair1, edge_id_pair1, direction_match1 = edge_info
-        face_id_pair2, edge_id_pair2, direction_match2 = face_topo[face_id_pair1][edge_id_pair1]
-        assert(face_id_pair2 == face_id)
-        assert(edge_id_pair2 == edge_id)
-        assert(direction_match1 == direction_match2)
+
 
 MAX_VERT_DEGREE = 4
 def edge_decoder(edge):
