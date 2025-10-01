@@ -1,4 +1,4 @@
-from config import np
+from .config import np
 from scipy.sparse import coo_array
 
 
