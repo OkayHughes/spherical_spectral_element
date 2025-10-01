@@ -1,9 +1,6 @@
 from .config import np
 
 
-
-
-
 def gen_cube_grid(face_connectivity, face_position, face_position_2d, vert_redundancy):
   NFACES = face_position.shape[0]
   gll_position = np.zeros(shape=(NFACES, npt, npt, 3))
