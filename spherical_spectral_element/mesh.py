@@ -10,9 +10,7 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
   gll_jacobian = np.zeros(shape=(NFACES, npt, npt, 3, 2))
   gll_position_2d = np.zeros(shape=(NFACES, npt, npt, 2))
   gll_jacobian_2d = np.zeros(shape=(NFACES, npt, npt, 2, 2))
-
-
-
+  
   for i_idx in range(npt):
     for j_idx in range(npt):
         alpha = deriv.gll_points[i_idx]

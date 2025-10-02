@@ -1,4 +1,4 @@
-from .config import np
+from .config import np, npt, DEBUG
 
 def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   NFACES = cube_points.shape[0]
@@ -10,11 +10,11 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   right_face_mask = (np.abs(cube_points[:, 1, 1, 0] - 1.0) < 1e-10).reshape((NFACES, 1, 1))
   gll_latlon = np.zeros(shape=(NFACES, npt, npt, 2))
   cube_to_sphere_jacobian = np.zeros(shape=(NFACES, npt, npt, 2, 2))
-  if TESTING:
+  if DEBUG:
     gll_latlon_pert = np.zeros(shape=(NFACES, npt, npt, 2))
     cube_points_pert = np.zeros_like(cube_points_2d)
 
-  if TESTING:
+  if DEBUG:
     n_mask = 0
     for m1, mask1 in enumerate([top_face_mask, bottom_face_mask, front_face_mask, back_face_mask, left_face_mask, right_face_mask]):
       for m2, mask2 in enumerate([top_face_mask, bottom_face_mask, front_face_mask, back_face_mask, left_face_mask, right_face_mask]):
@@ -71,7 +71,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,0] += front_lat(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * front_face_mask # (np.arctan2(cube_points[:, :, :, y_idx], np.sqrt(1 + cube_points[:, :, :, x_idx]**2))) * front_face_mask
   gll_latlon[:,:,:,1] += front_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * front_face_mask #np.mod((np.arctan(cube_points[:, :, :, x_idx]) + 2 * np.pi), 2 * np.pi) * front_face_mask
   set_jac_eq(cube_to_sphere_jacobian, gll_latlon[:,:,:,0],  gll_latlon[:,:,:,1], front_face_mask)
-  if TESTING:
+  if DEBUG:
     test_face(front_lat, front_lon, front_face_mask)
 
   # right face
@@ -80,7 +80,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,0] += right_lat(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * right_face_mask #(np.arctan2(cube_points[:, :, :, y_idx], np.sqrt(1 + cube_points[:, :, :, x_idx]**2))) * right_face_mask
   gll_latlon[:,:,:,1] += right_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * right_face_mask #(np.arctan(-cube_points[:, :, :, x_idx]) + np.pi/2) * right_face_mask
   set_jac_eq(cube_to_sphere_jacobian, gll_latlon[:,:,:,0], -np.pi/2 + gll_latlon[:,:,:,1], right_face_mask)
-  if TESTING:
+  if DEBUG:
     test_face(right_lat, right_lon, right_face_mask)
 
   # back face
@@ -89,7 +89,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,0] += back_lat(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * back_face_mask #(np.arctan2(cube_points[:, :, :, y_idx], np.sqrt(1 + cube_points[:, :, :, x_idx]**2))) * back_face_mask
   gll_latlon[:,:,:,1] += back_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * back_face_mask #(np.arctan(-cube_points[:, :, :, x_idx]) + np.pi ) * back_face_mask
   set_jac_eq(cube_to_sphere_jacobian, gll_latlon[:,:,:,0], -np.pi + gll_latlon[:,:,:,1], back_face_mask)
-  if TESTING:
+  if DEBUG:
     test_face(back_lat, back_lon, back_face_mask)
 
   # left face
@@ -98,7 +98,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,0] += left_lat(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * left_face_mask #(np.arctan2(cube_points[:, :, :, y_idx], np.sqrt(1 + cube_points[:, :, :, x_idx]**2))) * left_face_mask
   gll_latlon[:,:,:,1] += left_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * left_face_mask #(np.arctan(cube_points[:, :, :, x_idx]) + 3 * np.pi/2) * left_face_mask
   set_jac_eq(cube_to_sphere_jacobian, gll_latlon[:,:,:,0], -3 * np.pi/2 + gll_latlon[:,:,:,1], left_face_mask)
-  if TESTING:
+  if DEBUG:
     test_face(left_lat, left_lon, left_face_mask)
 
   # top face
@@ -107,7 +107,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,0] += top_lat(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * top_face_mask #( np.arctan2(1, np.sqrt(cube_points[:, :, :, x_idx]**2 + cube_points[:, :, :, y_idx]**2))) * top_face_mask
   gll_latlon[:,:,:,1] += top_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * top_face_mask #np.mod((np.arctan2(cube_points[:, :, :, x_idx], cube_points[:, :, :, y_idx])), 2 * np.pi) * top_face_mask
   set_jac_pole(cube_to_sphere_jacobian, gll_latlon[:,:,:,0], gll_latlon[:,:,:,1], top_face_mask, 1.0)
-  if TESTING:
+  if DEBUG:
     test_face(top_lat, top_lon, top_face_mask)
 
   # bottom face
@@ -117,38 +117,32 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   gll_latlon[:,:,:,1] += bottom_lon(cube_points_2d[:, :, :, 0], cube_points_2d[:, :, :, 1]) * bottom_face_mask # np.mod((np.arctan2(cube_points[:, :, :, x_idx], cube_points[:, :, :, y_idx])), 2 * np.pi) * bottom_face_mask
   set_jac_pole(cube_to_sphere_jacobian, gll_latlon[:,:,:,0], gll_latlon[:,:,:,1], bottom_face_mask, -1.0)
 
-  if TESTING:
+  if DEBUG:
     test_face(bottom_lat, bottom_lon, bottom_face_mask)
 
-  if TESTING:
-    for elem_idx in cube_redundancy.keys():
-      for (i_idx, j_idx) in cube_redundancy[elem_idx].keys():
-        for elem_idx_pair, i_idx_pair, j_idx_pair in cube_redundancy[elem_idx][(i_idx, j_idx)]:
-          try:
-            assert(np.max(np.abs(gll_latlon[elem_idx, i_idx, j_idx, :] - gll_latlon[elem_idx_pair, i_idx_pair, j_idx_pair, :])) < 1e-10)
-          except:
-            print(f"Position failure: local: {(inv_elem_id_fn(elem_idx), i_idx, j_idx)} {180/np.pi * gll_latlon[elem_idx][(i_idx, j_idx)]} pair: {(inv_elem_id_fn(elem_idx_pair), i_idx_pair, j_idx_pair)} {180/ np.pi * gll_latlon[elem_idx_pair][(i_idx_pair, j_idx_pair)]}")
   cube_to_sphere_jacobian_inv = np.linalg.inv(cube_to_sphere_jacobian)
   return gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_jacobian_inv
 
-gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_jacobian_inv = gen_metric_terms_equiangular(gll_pos, gll_pos_2d, vert_redundancy_gll)
 
-gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
-gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:,:,:,0])[:, :, :, np.newaxis]
-gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
 
-rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
+def generate_metric_terms(gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_jacobian_inv, vert_redundancy_gll):
+  gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
+  gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:,:,:,0])[:, :, :, np.newaxis]
+  gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
 
-metdet = 1.0/rmetdet
+  rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
 
-mass_mat = metdet.copy() * (g_weights[np.newaxis, :, np.newaxis] * g_weights[np.newaxis, np.newaxis, :]) # denominator for weighted sum
+  metdet = 1.0/rmetdet
 
-for local_face_idx in vert_redundancy_gll.keys():
-  for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
-    for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
-      mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (g_weights[local_i] * g_weights[local_j])
+  mass_mat = metdet.copy() * (g_weights[np.newaxis, :, np.newaxis] * g_weights[np.newaxis, np.newaxis, :]) # denominator for weighted sum
 
-inv_mass_mat = 1.0/mass_mat
-NELEM = gll_latlon.shape[0]
+  for local_face_idx in vert_redundancy_gll.keys():
+    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
+      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
+        mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (g_weights[local_i] * g_weights[local_j])
+
+  inv_mass_mat = 1.0/mass_mat
+  return gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat
+
 
 

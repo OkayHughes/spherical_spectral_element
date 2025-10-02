@@ -2,7 +2,7 @@ from .context import spherical_spectral_element
 from spherical_spectral_element.config import np, npt
 from spherical_spectral_element.math import bilinear, bilinear_jacobian
 from spherical_spectral_element.cubed_sphere import gen_cube_topo
-from spherical_spectral_element.spectral import Deriv
+from spherical_spectral_element.spectral import deriv
 
 def test_bilinear():
   NFACES = 1000
@@ -53,7 +53,6 @@ def test_bilinear():
 def test_bilinear_cs():
   nx = 15
   face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
-  deriv = Deriv()
   NFACES = face_position.shape[0]
   res = np.zeros(shape=(NFACES, 2))
   jac_test = np.zeros(shape=(NFACES, 2, 2))
