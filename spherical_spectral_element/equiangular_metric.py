@@ -1,4 +1,6 @@
 from .config import np, npt, DEBUG
+from .spectral import deriv
+from .mesh import gen_bilinear_grid
 
 def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
   NFACES = cube_points.shape[0]
@@ -125,7 +127,7 @@ def gen_metric_terms_equiangular(cube_points, cube_points_2d, cube_redundancy):
 
 
 
-def generate_metric_terms(gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_jacobian_inv, vert_redundancy_gll):
+def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacobian,  vert_redundancy_gll):
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:,:,:,0])[:, :, :, np.newaxis]
   gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
@@ -134,15 +136,19 @@ def generate_metric_terms(gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_ja
 
   metdet = 1.0/rmetdet
 
-  mass_mat = metdet.copy() * (g_weights[np.newaxis, :, np.newaxis] * g_weights[np.newaxis, np.newaxis, :]) # denominator for weighted sum
+  mass_mat = metdet.copy() * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :]) # denominator for weighted sum
 
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
-        mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (g_weights[local_i] * g_weights[local_j])
+        mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (deriv.gll_weights[local_i] * deriv.gll_weights[local_j])
 
   inv_mass_mat = 1.0/mass_mat
   return gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat
 
-
+def gen_metric_from_topo(face_connectivity, face_position, face_position_2d, vert_redundancy):
+  gll_pos, gll_pos_2d, gll_jacobian_2d, gll_jacobian_2d_inv, cube_redundancy = gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_redundancy)
+  gll_latlon, cube_to_sphere_jacobian, cube_to_sphere_jacobian_inv = gen_metric_terms_equiangular(gll_pos, gll_pos_2d, cube_redundancy)
+  gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat = generate_metric_terms(gll_latlon, gll_jacobian_2d, cube_to_sphere_jacobian, cube_redundancy)
+  return gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy
 

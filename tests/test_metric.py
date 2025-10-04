@@ -2,7 +2,7 @@ from .context import spherical_spectral_element
 from spherical_spectral_element.config import np, npt
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.spectral import deriv
-from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms
+from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
 from spherical_spectral_element.mesh import gen_bilinear_grid
 
 
@@ -23,4 +23,9 @@ def test_gen_metric():
 
 
 def test_gen_mass_mat():
-  pass
+  nx = 15
+  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  metrics = gen_metric_from_topo(face_connectivity, face_position, face_position_2d, vert_redundancy)
+  gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy = metrics
+  assert(np.allclose(np.sum(metdet * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :])), 4 * np.pi))
