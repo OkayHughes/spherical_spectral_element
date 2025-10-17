@@ -3,16 +3,15 @@ from spherical_spectral_element.config import np, npt
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
-from spherical_spectral_element.mesh import gen_bilinear_grid
 from spherical_spectral_element.assembly import init_dss_matrix, dss_scalar_for, dss_scalar
 from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient
 
 
 def test_vector_identites():
   nx = 15
-  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  metrics = gen_metric_from_topo(face_connectivity, face_position, face_position_2d, vert_redundancy)
+  metrics = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
   dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
 
@@ -38,9 +37,9 @@ def test_vector_identites():
 
 def test_analytic_soln():
   nx = 61
-  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  metrics = gen_metric_from_topo(face_connectivity, face_position, face_position_2d, vert_redundancy)
+  metrics = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
   dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
 

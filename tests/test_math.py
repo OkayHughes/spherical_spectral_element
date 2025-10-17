@@ -52,7 +52,7 @@ def test_bilinear():
 
 def test_bilinear_cs():
   nx = 15
-  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   NFACES = face_position.shape[0]
   res = np.zeros(shape=(NFACES, 2))
   jac_test = np.zeros(shape=(NFACES, 2, 2))

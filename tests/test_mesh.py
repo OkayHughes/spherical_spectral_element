@@ -4,16 +4,16 @@ from spherical_spectral_element.cubed_sphere import face_topo, gen_cube_topo, ed
 from spherical_spectral_element.grid_definitions import  TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from spherical_spectral_element.cubed_sphere import inv_elem_id_fn, elem_id_fn
 from spherical_spectral_element.grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE
-from spherical_spectral_element.mesh import gen_bilinear_grid
-
+from spherical_spectral_element.mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 
 
 
 def test_gen_bilinear_grid_cs():
   nx = 7
-  face_connectivity, face_position, face_position_2d = gen_cube_topo(nx)
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  gll_position, gll_position_2d, gll_jacobian_2d, gll_jacobian_2d_inv, vert_redundancy_gll = gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_redundancy)
+  gll_pos, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)
+  vert_redundancy_gll =  gen_gll_redundancy(face_connectivity, vert_redundancy)
   for elem_idx in vert_redundancy_gll.keys():
     for (i_idx, j_idx) in vert_redundancy_gll[elem_idx].keys():
       for elem_idx_pair, i_idx_pair, j_idx_pair in vert_redundancy_gll[elem_idx][(i_idx, j_idx)]:

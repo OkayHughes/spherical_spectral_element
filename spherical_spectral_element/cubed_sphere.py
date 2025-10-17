@@ -138,11 +138,12 @@ def gen_cube_topo(nx):
   face_connectivity = np.zeros(shape=(NFACE, 4, 3), dtype=np.int64)
   face_position = np.zeros(shape=(NFACE, 4, 3), dtype=np.float64)
   face_position_2d = np.zeros(shape=(NFACE, 4, 2), dtype=np.float64)
-
+  face_mask = np.zeros(NFACE, np.int32)
 
   for face_idx in [TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE]:
     for x_idx in range(nx):
       for y_idx in range(nx):
+        face_mask[elem_id_fn(nx, face_idx, x_idx, y_idx)]= face_idx
         corner_list = vert_info[face_idx]
         x_frac_left = x_idx/nx
         x_frac_right = (x_idx+1)/nx
@@ -194,7 +195,13 @@ def gen_cube_topo(nx):
           face_position_2d[elem_idx, v_idx, 0] = corner[axis_info[face_idx][0]] * axis_info[face_idx][1]
           face_position_2d[elem_idx, v_idx, 1] = corner[axis_info[face_idx][2]] * axis_info[face_idx][3]
 
-  return face_connectivity, face_position, face_position_2d
+  # face_mask[(np.abs(face_position[:, 1, 1, 2] - 1.0) < 1e-10)] = TOP_FACE
+  # face_mask[(np.abs(cube_points[:, 1, 1, 2] - -1.0) < 1e-10)] = BOTTOM_FACE
+  # face_mask[(np.abs(cube_points[:, 1, 1, 1] - 1.0) < 1e-10)] = FRONT_FACE
+  # face_mask[(np.abs(cube_points[:, 1, 1, 1] - -1.0) < 1e-10)] = BACK_FACE
+  # face_mask[(np.abs(cube_points[:, 1, 1, 0] - -1.0) < 1e-10)] = LEFT_FACE
+  # face_mask[(np.abs(cube_points[:, 1, 1, 0] - 1.0) < 1e-10)] = RIGHT_FACE
+  return face_connectivity, face_mask, face_position, face_position_2d
 
 
 def gen_vert_redundancy(nx, face_connectivity, face_position):

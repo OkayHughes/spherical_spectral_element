@@ -3,13 +3,14 @@ from .math import bilinear, bilinear_jacobian
 from .spectral import deriv
 from .grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE 
 
-def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_redundancy):
-  #temporary note: we can assume here that this is mpi-local. 
+
+
+def mesh_to_cart_bilinear(face_position):
+  cart_dim = face_position.shape[2]
   NFACES = face_position.shape[0]
-  gll_position = np.zeros(shape=(NFACES, npt, npt, 3))
-  gll_jacobian = np.zeros(shape=(NFACES, npt, npt, 3, 2))
-  gll_position_2d = np.zeros(shape=(NFACES, npt, npt, 2))
-  gll_jacobian_2d = np.zeros(shape=(NFACES, npt, npt, 2, 2))
+
+  gll_position = np.zeros(shape=(NFACES, npt, npt, cart_dim))
+  gll_jacobian = np.zeros(shape=(NFACES, npt, npt, cart_dim, 2))
   
   for i_idx in range(npt):
     for j_idx in range(npt):
@@ -19,10 +20,6 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
                               face_position[:, 1, :],
                               face_position[:, 2, :],
                               face_position[:, 3, :], alpha, beta)
-        gll_position_2d[:, i_idx, j_idx, :] = bilinear(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta)
 
         dphys_dalpha, dphys_dbeta = bilinear_jacobian(face_position[:, 0, :],
                               face_position[:, 1, :],
@@ -30,16 +27,12 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
                               face_position[:, 3, :], alpha, beta)
         gll_jacobian[:, i_idx, j_idx, :, 0] = dphys_dalpha
         gll_jacobian[:, i_idx, j_idx, :, 1] = dphys_dbeta
-        dphys_dalpha, dphys_dbeta = bilinear_jacobian(face_position_2d[:, 0, :],
-                              face_position_2d[:, 1, :],
-                              face_position_2d[:, 2, :],
-                              face_position_2d[:, 3, :], alpha, beta)
-        gll_jacobian_2d[:, i_idx, j_idx, :, 0] = dphys_dalpha
-        gll_jacobian_2d[:, i_idx, j_idx, :, 1] = dphys_dbeta
+
+  return gll_position, gll_jacobian
 
 
-
-  gll_jacobian_2d_inv = np.linalg.inv(gll_jacobian_2d)
+def gen_gll_redundancy(face_connectivity, vert_redundancy):
+  #temporary note: we can assume here that this is mpi-local. 
 
 
   # note:
@@ -115,7 +108,7 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
     return elem_idx_pair, i_idx_pair, j_idx_pair
 
   # Note: conforming grids should have no singleton vertices of elements.
-  for elem_idx in range(NFACES):
+  for elem_idx in vert_redundancy.keys():
     for i_idx in range(npt):
       for j_idx in range(npt):
         corner_idx = -1
@@ -159,6 +152,6 @@ def gen_bilinear_grid(face_connectivity, face_position, face_position_2d, vert_r
             elem_idx_pair, i_idx_pair, j_idx_pair = infer_edge(vert_redundancy[elem_idx], edge_idx, free_idx)
             wrap(elem_idx, i_idx, j_idx)
             vert_redundancy_gll[elem_idx][(i_idx, j_idx)].add((elem_idx_pair, i_idx_pair, j_idx_pair))
-  return gll_position, gll_position_2d, gll_jacobian_2d, gll_jacobian_2d_inv, vert_redundancy_gll
+  return vert_redundancy_gll
 
 
