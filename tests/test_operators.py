@@ -3,7 +3,7 @@ from spherical_spectral_element.config import np, npt
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
-from spherical_spectral_element.assembly import init_dss_matrix, dss_scalar_for, dss_scalar
+from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar
 from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient
 
 
@@ -11,43 +11,43 @@ def test_vector_identites():
   nx = 15
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  metrics = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
-  dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
+  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  #gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
+  #dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
 
 
-  fn = np.cos(gll_latlon[:, :, :, 1]) * np.cos(gll_latlon[:, :, :, 0])
-  grad = sphere_gradient(fn, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet)
-  vort = sphere_vorticity(grad, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet)
-  iprod_vort = inner_prod(vort, vort, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet) 
+  fn = np.cos(grid.physical_coords[:, :, :, 1]) * np.cos(grid.physical_coords[:, :, :, 0])
+  grad = sphere_gradient(fn, grid)
+  vort = sphere_vorticity(grad, grid)
+  iprod_vort = inner_prod(vort, vort, grid) 
   assert(np.allclose(iprod_vort, np.zeros_like(vort)))
-  v = np.zeros_like(gll_latlon)
-  v[:,:,:,0] = np.cos(gll_latlon[:, :, :, 0])
-  v[:,:,:,1] = np.cos(gll_latlon[:, :, :, 0])
-  u = np.zeros_like(gll_latlon)
-  u[:,:,:,0] = np.cos(2*gll_latlon[:, :, :, 0])
-  u[:,:,:,1] = np.cos(2*gll_latlon[:, :, :, 0])
+  v = np.zeros_like(grid.physical_coords)
+  v[:,:,:,0] = np.cos(grid.physical_coords[:, :, :, 0])
+  v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])
+  u = np.zeros_like(grid.physical_coords)
+  u[:,:,:,0] = np.cos(2*grid.physical_coords[:, :, :, 0])
+  u[:,:,:,1] = np.cos(2*grid.physical_coords[:, :, :, 0])
 
   #v_cov = sph_to_cov(v, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet)
-  grad = sphere_gradient(fn, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet)
-  discrete_divergence_thm = (inner_prod(v[:,:,:,0], grad[:,:,:,0], sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet) + 
-                             inner_prod(v[:,:,:,1], grad[:,:,:,1], sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet) - 
-                             inner_prod(fn, sphere_divergence(v, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet), sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet))
+  grad = sphere_gradient(fn, grid)
+  discrete_divergence_thm = (inner_prod(v[:,:,:,0], grad[:,:,:,0], grid) + 
+                             inner_prod(v[:,:,:,1], grad[:,:,:,1], grid) - 
+                             inner_prod(fn, sphere_divergence(v, grid), grid))
   assert(np.allclose(discrete_divergence_thm, np.zeros_like(discrete_divergence_thm)))
 
 def test_analytic_soln():
   nx = 61
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  metrics = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
-  dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
+  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  #gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
+  #dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
 
-  fn = np.cos(gll_latlon[:, :, :, 1]) * np.cos(gll_latlon[:, :, :, 0])
-  grad_f_numerical = sphere_gradient(fn, sphere_to_gll_jacobian, gll_to_sphere_jacobian, metdet, rmetdet)
+  fn = np.cos(grid.physical_coords[:, :, :, 1]) * np.cos(grid.physical_coords[:, :, :, 0])
+  grad_f_numerical = sphere_gradient(fn, grid)
 
-  sph_grad_lat = -np.cos(gll_latlon[:, :, :, 1]) * np.sin(gll_latlon[:, :, :, 0])
-  sph_grad_lon = -np.sin(gll_latlon[:, :, :, 1])
+  sph_grad_lat = -np.cos(grid.physical_coords[:, :, :, 1]) * np.sin(grid.physical_coords[:, :, :, 0])
+  sph_grad_lon = -np.sin(grid.physical_coords[:, :, :, 1])
   print(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,0])))
   print(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,1])))
   assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,0])) < 1e-5)

@@ -27,6 +27,6 @@ def test_gen_mass_mat():
   nx = 15
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  metrics = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy = metrics
-  assert(np.allclose(np.sum(metdet * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :])), 4 * np.pi))
+  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy = metrics
+  assert(np.allclose(np.sum(grid.met_det * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :])), 4 * np.pi))

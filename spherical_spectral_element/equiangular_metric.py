@@ -2,9 +2,9 @@ from .config import np, npt, DEBUG
 from .spectral import deriv
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
+from .se_grid import SpectralElementGrid
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
   NFACES = cube_points_2d.shape[0]
-
 
   top_face_mask = (face_mask == TOP_FACE)[:, np.newaxis, np.newaxis]
   bottom_face_mask = (face_mask == BOTTOM_FACE)[:, np.newaxis, np.newaxis]
@@ -12,11 +12,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
   right_face_mask = (face_mask == RIGHT_FACE)[:, np.newaxis, np.newaxis]
   front_face_mask = (face_mask == FRONT_FACE)[:, np.newaxis, np.newaxis]
   back_face_mask = (face_mask == BACK_FACE)[:, np.newaxis, np.newaxis]
-  # face_mask[(np.abs(cube_points[:, 1, 1, 2] - -1.0) < 1e-10)] = BOTTOM_FACE
-  # face_mask[(np.abs(cube_points[:, 1, 1, 1] - 1.0) < 1e-10)] = FRONT_FACE
-  # face_mask[(np.abs(cube_points[:, 1, 1, 1] - -1.0) < 1e-10)] = BACK_FACE
-  # face_mask[(np.abs(cube_points[:, 1, 1, 0] - -1.0) < 1e-10)] = LEFT_FACE
-  # face_mask[(np.abs(cube_points[:, 1, 1, 0] - 1.0) < 1e-10)] = RIGHT_FACE
+
   gll_latlon = np.zeros(shape=(NFACES, npt, npt, 2))
   cube_to_sphere_jacobian = np.zeros(shape=(NFACES, npt, npt, 2, 2))
   if DEBUG:
@@ -150,12 +146,12 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacob
         mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (deriv.gll_weights[local_i] * deriv.gll_weights[local_j])
 
   inv_mass_mat = 1.0/mass_mat
-  return gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat
+
+  return SpectralElementGrid(gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll)
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy):
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)
   cube_redundancy =  gen_gll_redundancy(face_connectivity, vert_redundancy)
-  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy)
-  gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat = generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy)
-  return gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy
+  gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy) 
+  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy)
 
