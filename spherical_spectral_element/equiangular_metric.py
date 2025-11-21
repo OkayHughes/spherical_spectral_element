@@ -134,6 +134,7 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacob
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:,:,:,0])[:, :, :, np.newaxis]
   gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
 
+
   rmetdet = np.linalg.det(gll_to_sphere_jacobian_inv)
 
   metdet = 1.0/rmetdet

@@ -11,6 +11,7 @@ class SpectralElementGrid():
                mass_mat, 
                inv_mass_mat,
                vert_redundancy):
+    self.num_elem = latlon.shape[0]
     self.physical_coords = latlon
     self.jacobian = gll_to_sphere_jacobian
     self.jacobian_inv = gll_to_sphere_jacobian_inv

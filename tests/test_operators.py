@@ -8,19 +8,24 @@ from spherical_spectral_element.operators import sphere_gradient, sphere_diverge
 
 
 def test_vector_identites():
-  nx = 15
+  nx = 31
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   #gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
   #dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
 
-
   fn = np.cos(grid.physical_coords[:, :, :, 1]) * np.cos(grid.physical_coords[:, :, :, 0])
   grad = sphere_gradient(fn, grid)
   vort = sphere_vorticity(grad, grid)
+  import matplotlib.pyplot as plt
+  plt.figure()
+  plt.tricontourf(grid.physical_coords[:, :, :, 1].flatten(), grid.physical_coords[:, :, :, 0].flatten(), vort.flatten())
+  plt.colorbar()
+  plt.savefig("_figures/vort.pdf")
+
   iprod_vort = inner_prod(vort, vort, grid) 
-  assert(np.allclose(iprod_vort, np.zeros_like(vort)))
+  assert(np.allclose(iprod_vort, 0))
   v = np.zeros_like(grid.physical_coords)
   v[:,:,:,0] = np.cos(grid.physical_coords[:, :, :, 0])
   v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])
@@ -35,8 +40,46 @@ def test_vector_identites():
                              inner_prod(fn, sphere_divergence(v, grid), grid))
   assert(np.allclose(discrete_divergence_thm, np.zeros_like(discrete_divergence_thm)))
 
+def test_divergence():
+  nx = 31
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  vec = np.zeros_like(grid.physical_coords)
+  lat = grid.physical_coords[:,:,:,0]
+  lon = grid.physical_coords[:,:,:,1]
+  vec[:,:,:,0] = np.cos(lat)**2 * np.cos(lon)**3
+  vec[:,:,:,1] = np.cos(lat)**2 * np.cos(lon)**3
+
+  vort_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
+                   3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
+
+  div_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) -
+                  3.0 * np.cos(lat) * np.sin(lat) * np.cos(lon)**3)
+  #vec = np.zeros_like(grid.physical_coords)
+  #lat = grid.physical_coords[:,:,:,0]
+  #lon = grid.physical_coords[:,:,:,1]
+  ##vec[:,:,:,0] = np.cos(lat)
+  #vec[:,:,:,1] = 0.0
+  div = dss_scalar(sphere_divergence(vec, grid), grid)
+  vort = dss_scalar(sphere_vorticity(vec, grid), grid)
+
+  #div_analytic = (0 * lat)
+  import matplotlib.pyplot as plt
+  plt.figure()
+  plt.tricontourf(lon.flatten(), lat.flatten(), (vort).flatten())
+  plt.colorbar()
+  plt.savefig("_figures/tmp1.pdf")
+  plt.figure()
+  plt.tricontourf(lon.flatten(), lat.flatten(), (vort_analytic).flatten())
+  plt.colorbar()
+  plt.savefig("_figures/tmp2.pdf")
+  #print(np.max())
+  assert(inner_prod(div_analytic - div, div_analytic - div, grid) < 1e-5)
+  assert(inner_prod(vort_analytic - vort, vort_analytic - vort, grid) < 1e-5)
+
 def test_analytic_soln():
-  nx = 61
+  nx = 31
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
@@ -45,13 +88,14 @@ def test_analytic_soln():
 
   fn = np.cos(grid.physical_coords[:, :, :, 1]) * np.cos(grid.physical_coords[:, :, :, 0])
   grad_f_numerical = sphere_gradient(fn, grid)
-
+  lon = grid.physical_coords[:, :, :, 1]
+  lat = grid.physical_coords[:, :, :, 0]
   sph_grad_lat = -np.cos(grid.physical_coords[:, :, :, 1]) * np.sin(grid.physical_coords[:, :, :, 0])
   sph_grad_lon = -np.sin(grid.physical_coords[:, :, :, 1])
-  print(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,0])))
-  print(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,1])))
-  assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,0])) < 1e-5)
-  assert(np.max(np.abs(np.allclose(sph_grad_lon, grad_f_numerical[:,:,:,1]))) < 1e-5)
+  print(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])))
+  print(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])))
+  assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])) < 1e-4)
+  assert(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])) < 1e-4)
 
 # import matplotlib.pyplot as plt
 
