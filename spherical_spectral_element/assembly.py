@@ -17,6 +17,10 @@ def dss_scalar_for(f, grid):
   workspace *= inv_mass_mat
   return workspace
 
-def dss_scalar(f, grid):
-  return (grid.dss_matrix@f.flatten()).reshape(f.shape)
+def dss_scalar(f, grid, scaled=True):
+  if scaled:
+    return (grid.dss_matrix@f.flatten()).reshape(f.shape)
+  else:
+    return (grid.dss_matrix_unscaled@f.flatten()).reshape(f.shape)
+
 

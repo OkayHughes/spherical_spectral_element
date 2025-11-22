@@ -15,6 +15,7 @@ class SpectralElementGrid():
     self.physical_coords = latlon
     self.jacobian = gll_to_sphere_jacobian
     self.jacobian_inv = gll_to_sphere_jacobian_inv
+
     self.recip_met_det = rmetdet
     self.met_det = metdet
     self.mass_matrix = mass_mat
@@ -35,20 +36,28 @@ class SpectralElementGrid():
     data = []
     rows = []
     cols = []
+    data_un = []
 
     for face_idx in range(NELEM):
       for i_idx in range(npt):
         for j_idx in range(npt):
           data.append(metdet[face_idx, i_idx, j_idx] *  (deriv.gll_weights[i_idx] * deriv.gll_weights[j_idx]) * inv_mass_mat[face_idx, i_idx, j_idx])
+          data_un.append(inv_mass_mat[face_idx, i_idx, j_idx])
           rows.append(index_hack[face_idx, i_idx, j_idx])
           cols.append(index_hack[face_idx, i_idx, j_idx])
     for local_face_idx in vert_redundancy_gll.keys():
       for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
         for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
           data.append(metdet[local_face_idx, local_i, local_j] *  (deriv.gll_weights[local_i] * deriv.gll_weights[local_j]) * inv_mass_mat[local_face_idx, local_i, local_j])
+          data_un.append(inv_mass_mat[local_face_idx, local_i, local_j])
           rows.append(index_hack[remote_face_id, remote_i, remote_j])
           cols.append(index_hack[local_face_idx, local_i, local_j])
     # sparse matrix representation makes eventual autograd port significantly easier
     dss_matrix = coo_array((data, (rows, cols)), shape=(NELEM * npt * npt, NELEM*npt * npt))
+    dss_matrix_unscaled = coo_array((data_un, (rows, cols)), shape=(NELEM * npt * npt, NELEM*npt * npt))
+
     # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
     self.dss_matrix = dss_matrix
+    self.dss_matrix_unscaled = dss_matrix_unscaled
+  def init_sphere_to_cart(self):
+    pass

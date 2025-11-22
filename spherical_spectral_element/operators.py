@@ -28,6 +28,17 @@ def sphere_vorticity(u, grid, a=1.0):
 def sphere_laplacian(f, grid, a=1.0):
   grad = sphere_gradient(f, grid, a=a)
   return sphere_divergence(grad, grid, a=a)
+def sphere_vlaplacian(u, grid, a=1.0):
+  #grad = sphere_gradient(f, grid, a=a)
+  #return sphere_divergence(grad, grid, a=a)
+  pass
+
+def sphere_divergence_wk(u,grid, a=1.0):
+  contra = sph_to_contra(u, grid)
+  du_da_wk = - np.einsum("n,j,fjn,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_det, contra[:,:,:,0], deriv.deriv)
+  du_db_wk = - np.einsum("m,j,fmj,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_det, contra[:,:,:,1], deriv.deriv)
+  return 1.0/a * (du_da_wk + du_db_wk) 
+
 
 def sph_to_contra(u, grid):
   return np.einsum("fijs,fijgs->fijg", np.flip(u, axis=-1), grid.jacobian_inv)

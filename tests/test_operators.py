@@ -4,7 +4,7 @@ from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redu
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient
+from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk
 
 
 def test_vector_identites():
@@ -62,19 +62,10 @@ def test_divergence():
   ##vec[:,:,:,0] = np.cos(lat)
   #vec[:,:,:,1] = 0.0
   div = dss_scalar(sphere_divergence(vec, grid), grid)
+  div_wk = dss_scalar(sphere_divergence_wk(vec, grid),grid, scaled=False) 
+  #div_wk = sphere_divergence_wk(vec, grid)
   vort = dss_scalar(sphere_vorticity(vec, grid), grid)
-
-  #div_analytic = (0 * lat)
-  import matplotlib.pyplot as plt
-  plt.figure()
-  plt.tricontourf(lon.flatten(), lat.flatten(), (vort).flatten())
-  plt.colorbar()
-  plt.savefig("_figures/tmp1.pdf")
-  plt.figure()
-  plt.tricontourf(lon.flatten(), lat.flatten(), (vort_analytic).flatten())
-  plt.colorbar()
-  plt.savefig("_figures/tmp2.pdf")
-  #print(np.max())
+  assert(inner_prod(div_wk - div, div_wk - div, grid) < 1e-5)
   assert(inner_prod(div_analytic - div, div_analytic - div, grid) < 1e-5)
   assert(inner_prod(vort_analytic - vort, vort_analytic - vort, grid) < 1e-5)
 
