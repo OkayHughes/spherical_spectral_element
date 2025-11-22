@@ -4,7 +4,7 @@ from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redu
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk, sphere_gradient_wk_cov
+from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk, sphere_gradient_wk_cov, vlaplace_sphere_wk
 
 
 def test_vector_identites():
@@ -84,15 +84,15 @@ def test_analytic_soln():
   sph_grad_wk[:,:,:,0] = dss_scalar(sph_grad_wk[:,:,:,0], grid, scaled=False)
   sph_grad_wk[:,:,:,1] = dss_scalar(sph_grad_wk[:,:,:,1], grid, scaled=False)
   grad_diff = sph_grad_wk - grad_f_numerical
-  import matplotlib.pyplot as plt
-  plt.figure()
-  plt.scatter(lon.flatten(), lat.flatten(), c=sph_grad_wk[:,:,:,0].flatten(), s=0.01)
+  #import matplotlib.pyplot as plt
+  #plt.figure()
+  #plt.scatter(lon.flatten(), lat.flatten(), c=sph_grad_wk[:,:,:,0].flatten(), s=0.01)
   #i = 1
   #j = 1
   #plt.scatter(lon[:,i,j].flatten(), lat[:,i,j].flatten(), c=sph_grad_wk[:,i,j,0].flatten(), s=0.01)
 
-  plt.colorbar()
-  plt.savefig("_figures/grad_wk_test.pdf")
+  #plt.colorbar()
+  #plt.savefig("_figures/grad_wk_test.pdf")
   sph_grad_lat = -np.cos(grid.physical_coords[:, :, :, 1]) * np.sin(grid.physical_coords[:, :, :, 0])
   sph_grad_lon = -np.sin(grid.physical_coords[:, :, :, 1])
   assert((inner_prod(grad_diff[:,:,:,0], grad_diff[:,:,:,0], grid)+
@@ -102,101 +102,47 @@ def test_analytic_soln():
   assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])) < 1e-4)
   assert(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])) < 1e-4)
 
-# import matplotlib.pyplot as plt
+def test_vector_laplacian():
+  nx = 31
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  #gll_latlon, gll_to_sphere_jacobian, sphere_to_gll_jacobian, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll = metrics
+  #dss_matrix = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll)
+  v = np.zeros_like(grid.physical_coords)
+  v[:,:,:,0] = np.cos(grid.physical_coords[:, :, :, 0])
+  v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])
+  lon = grid.physical_coords[:, :, :, 1]
+  lat = grid.physical_coords[:, :, :, 0]
+  laplace_v_wk = vlaplace_sphere_wk(v, grid)
+  laplace_v_wk[:,:,:,0] = dss_scalar(laplace_v_wk[:,:,:,0], grid, scaled=False)
+  laplace_v_wk[:,:,:,1] = dss_scalar(laplace_v_wk[:,:,:,1], grid, scaled=False)
+  import matplotlib.pyplot as plt
+  #plt.figure()
+  #plt.scatter(lon.flatten(), lat.flatten(), c=laplace_v_wk[:,:,:,0].flatten(), s=0.01)
+  #i = 1
+  #j = 1
+  #plt.scatter(lon[:,i,j].flatten(), lat[:,i,j].flatten(), c=laplace_v_wk[:,i,j,0].flatten(), s=0.01)
+  #plt.colorbar()
+  #plt.savefig("_figures/lap_wk_test.pdf")
+  lap_diff = laplace_v_wk + 2 * v
+  assert((inner_prod(lap_diff[:,:,:,0], lap_diff[:,:,:,0], grid)+
+          inner_prod(lap_diff[:,:,:,1], lap_diff[:,:,:,1], grid) ) < 1e-5)
+  v[:,:,:,0] = np.cos(grid.physical_coords[:, :, :, 0])**2
+  v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])**2
+  laplace_v_wk = vlaplace_sphere_wk(v, grid)
+  laplace_v_wk[:,:,:,0] = dss_scalar(laplace_v_wk[:,:,:,0], grid, scaled=False)
+  laplace_v_wk[:,:,:,1] = dss_scalar(laplace_v_wk[:,:,:,1], grid, scaled=False)
+  lap_diff = laplace_v_wk  + 3 * (np.cos(2 * grid.physical_coords[:, :, :, 0]))[:,:,:,np.newaxis]
+  # plt.figure()
+  # plt.scatter(lon.flatten(), lat.flatten(), c=lap_diff[:,:,:,0].flatten(), s=0.01)
+  #i = 1
+  #j = 1
+  #plt.scatter(lon[:,i,j].flatten(), lat[:,i,j].flatten(), c=laplace_v_wk[:,i,j,0].flatten(), s=0.01)
+  # plt.colorbar()
+  # plt.savefig("_figures/lap_wk_test.pdf")
+  assert((inner_prod(lap_diff[:,:,:,0], lap_diff[:,:,:,0], grid)+
+          inner_prod(lap_diff[:,:,:,1], lap_diff[:,:,:,1], grid) ) < 1e-3)
 
-# if TESTING:
-#   fn = np.cos(gll_latlon[:, :, :, 1]) * np.cos(gll_latlon[:, :, :, 0])
-#   df_dab = np.zeros((gll_latlon.shape[0], npt, npt, 2))
-#   df_dab[:, :, :, 0] = np.einsum("fij,ki->fkj", fn, deriv)
-#   df_dab[:, :, :, 1] = np.einsum("fij,kj->fik", fn, deriv)
-#   dlatlon_dab = np.zeros((gll_latlon.shape[0], npt, npt, 2, 2))
-#   dlatlon_dab[:, :, :, 0] = np.einsum("fijs,ki->fjks", gll_latlon, deriv)
-#   dlatlon_dab[:, :, :, 1] = np.einsum("fijs,kj->fiks", gll_latlon, deriv)
 
-
-#   df_dcart = np.einsum("fijg,fijgp->fijp",df_dab, gll_to_cube_jacobian_inv)
-#   df_dlatlon = np.einsum("fijg,fijgs->fijs", df_dab, gll_to_sphere_jacobian_inv)#*(g_weights[np.newaxis, :, np.newaxis, np.newaxis])
-#   df_dlatlon[:,:,:,0] = dss_scalar(df_dlatlon[:,:,:,0])
-#   df_dlatlon[:,:,:,1] = dss_scalar(df_dlatlon[:,:,:,1])
-#   dlatlon_dcart = np.einsum("fijgs,fijgp->fijps", dlatlon_dab, gll_to_cube_jacobian_inv)
-#   #print(np.max(np.abs(dlatlon_dcart - cube_to_sphere_jacobian)))
-#   print(f"computational derivative vs analytical jacobian: {np.max(dlatlon_dcart - cube_to_sphere_jacobian)}")
-
-#   df_dlat = -np.cos(gll_latlon[:, :, :, 1]) * np.sin(gll_latlon[:, :, :, 0])
-#   df_dlon = -np.sin(gll_latlon[:, :, :, 1])
-
-#   #print(f"max df_dx_error: {np.max(np.abs(df_dcart[:, :, :, 0] - df_dx))} max df_dy_error: {np.max(np.abs(df_dcart[:, :, :, 1] - df_dy))} max df_dz_error: {np.max(np.abs(df_dcart[:, :, :, 2] - df_dz))}")
-#   print(f"max df_dlat error: {np.max(np.abs(df_dlatlon[:, :, :, 0] - df_dlat))} max df_dlon_error: {np.max(np.abs(df_dlatlon[:, :, :, 1] - df_dlon))}")
-#   print(f"min df_dlat error: {np.min(np.abs(df_dlatlon[:, :, :, 0] - df_dlat))} min df_dlon_error: {np.min(np.abs(df_dlatlon[:, :, :, 1] - df_dlon))}")
-#   print(df_dcart.shape)
-#   print(df_dlatlon.shape)
-
-# i_plot = np.arange(0, npt).reshape((1, -1, 1)) * np.ones_like(gll_latlon[:, :, :, 0])
-# j_plot = np.arange(0, npt).reshape((1, 1, -1)) * np.ones_like(gll_latlon[:, :, :, 0])
-# st = 0
-# nd = 4
-# cmap="jet"
-# if TESTING:
-#   start_i = st
-#   end_i = nd
-#   start_j = st
-#   end_j = nd
-#   plt.figure()
-#   plt.title("f")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(fn[:, start_i:end_i, start_j:end_j]).flatten(), cmap="jet")
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_da")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dab[:, start_i:end_i, start_j:end_j, 0]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_db")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dab[:, start_i:end_i, start_j:end_j, 0]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_dlat")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlatlon[:, start_i:end_i, start_j:end_j, 0]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_dlat_analytic")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlat[:, start_i:end_i, start_j:end_j]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_dlon")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlatlon[:, start_i:end_i, start_j:end_j, 1]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("df_dlon_analytic")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlon[:, start_i:end_i, start_j:end_j]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("vort grad f")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(vort[:, start_i:end_i, start_j:end_j]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-
-#   plt.title("log lat err")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=np.log(np.abs((df_dlatlon[:, start_i:end_i, start_j:end_j, 0]-df_dlat[:, start_i:end_i, start_j:end_j]).flatten())), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("log lon err")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=np.log(np.abs((df_dlatlon[:, start_i:end_i, start_j:end_j, 1]-df_dlon[:, start_i:end_i, start_j:end_j]).flatten())), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.title("lat err")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlatlon[:, start_i:end_i, start_j:end_j, 0]-df_dlat[:, start_i:end_i, start_j:end_j]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
-#   plt.show()
-#   plt.figure()
-#   plt.title("lon err")
-#   plt.scatter(gll_latlon[:, start_i:end_i, start_j:end_j, 1].flatten(), gll_latlon[:, start_i:end_i, start_j:end_j, 0].flatten(), c=(df_dlatlon[:, start_i:end_i, start_j:end_j, 1]-df_dlon[:, start_i:end_i, start_j:end_j]).flatten(), alpha=0.5, s=np.random.uniform(size=gll_latlon[:, start_i:end_i, start_j:end_j, 1].size, high=50, low=10), cmap=cmap)
-#   plt.colorbar()
 

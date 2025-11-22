@@ -38,8 +38,20 @@ def sphere_gradient_wk_cov(s, grid, a=1.0):
   ds_contra[:,:,:,0] -=  np.einsum("m,j,fmn,fmn,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,1,0], grid.met_det, s, deriv.deriv)
   ds_contra[:,:,:,1] = - np.einsum("j,n,fmn,fmn,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,0,1], grid.met_det, s, deriv.deriv)
   ds_contra[:,:,:,1] -=  np.einsum("m,j,fmn,fmn,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,1,1], grid.met_det, s, deriv.deriv)
-
   return 1.0/a * contra_to_sph(ds_contra, grid)
+
+def sphere_curl_wk_cov(s, grid, a=1.0):
+  ds_contra = np.zeros((*s.shape, 2))
+  ds_contra[:,:,:,0] =  np.einsum("m,j,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, s, deriv.deriv)
+  ds_contra[:,:,:,1] = - np.einsum("j,n,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, s, deriv.deriv)
+  return 1.0/a * contra_to_sph(ds_contra, grid)
+
+def vlaplace_sphere_wk(u, grid, a=1.0, nu_fact = 1.0):
+  div = sphere_divergence(u, grid, a=a) * nu_fact
+  vor = sphere_vorticity(u, grid, a=a)
+  return sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
+
+
 
 
 
