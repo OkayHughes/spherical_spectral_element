@@ -28,17 +28,31 @@ def sphere_vorticity(u, grid, a=1.0):
 def sphere_laplacian(f, grid, a=1.0):
   grad = sphere_gradient(f, grid, a=a)
   return sphere_divergence(grad, grid, a=a)
-def sphere_vlaplacian(u, grid, a=1.0):
-  #grad = sphere_gradient(f, grid, a=a)
-  #return sphere_divergence(grad, grid, a=a)
-  pass
+def sphere_laplacian_wk(f, grid, a=1.0):
+  grad = sphere_gradient(f, grid, a=a)
+  return sphere_divergence_wk(grad, grid, a=a)
 
-def sphere_divergence_wk(u,grid, a=1.0):
+def sphere_gradient_wk_cov(s, grid, a=1.0):
+  ds_contra = np.zeros((*s.shape, 2))
+  ds_contra[:,:,:,0] = - np.einsum("j,n,fmn,fmn,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,0,0], grid.met_det, s, deriv.deriv)
+  ds_contra[:,:,:,0] -=  np.einsum("m,j,fmn,fmn,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,1,0], grid.met_det, s, deriv.deriv)
+  ds_contra[:,:,:,1] = - np.einsum("j,n,fmn,fmn,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,0,1], grid.met_det, s, deriv.deriv)
+  ds_contra[:,:,:,1] -=  np.einsum("m,j,fmn,fmn,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_inv[:,:,:,1,1], grid.met_det, s, deriv.deriv)
+
+  return 1.0/a * contra_to_sph(ds_contra, grid)
+
+
+
+
+
+def sphere_divergence_wk(u, grid, a=1.0):
   contra = sph_to_contra(u, grid)
   du_da_wk = - np.einsum("n,j,fjn,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_det, contra[:,:,:,0], deriv.deriv)
   du_db_wk = - np.einsum("m,j,fmj,fmj,jn->fmn", deriv.gll_weights, deriv.gll_weights, grid.met_det, contra[:,:,:,1], deriv.deriv)
   return 1.0/a * (du_da_wk + du_db_wk) 
 
+def contra_to_sph(u, grid):
+  return np.flip(np.einsum("fijg,fijsg->fijs", u, grid.jacobian), axis=-1)
 
 def sph_to_contra(u, grid):
   return np.einsum("fijs,fijgs->fijg", np.flip(u, axis=-1), grid.jacobian_inv)

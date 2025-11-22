@@ -4,7 +4,7 @@ from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redu
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk
+from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk, sphere_gradient_wk_cov
 
 
 def test_vector_identites():
@@ -63,7 +63,6 @@ def test_divergence():
   #vec[:,:,:,1] = 0.0
   div = dss_scalar(sphere_divergence(vec, grid), grid)
   div_wk = dss_scalar(sphere_divergence_wk(vec, grid),grid, scaled=False) 
-  #div_wk = sphere_divergence_wk(vec, grid)
   vort = dss_scalar(sphere_vorticity(vec, grid), grid)
   assert(inner_prod(div_wk - div, div_wk - div, grid) < 1e-5)
   assert(inner_prod(div_analytic - div, div_analytic - div, grid) < 1e-5)
@@ -81,8 +80,23 @@ def test_analytic_soln():
   grad_f_numerical = sphere_gradient(fn, grid)
   lon = grid.physical_coords[:, :, :, 1]
   lat = grid.physical_coords[:, :, :, 0]
+  sph_grad_wk = sphere_gradient_wk_cov(fn, grid)
+  sph_grad_wk[:,:,:,0] = dss_scalar(sph_grad_wk[:,:,:,0], grid, scaled=False)
+  sph_grad_wk[:,:,:,1] = dss_scalar(sph_grad_wk[:,:,:,1], grid, scaled=False)
+  grad_diff = sph_grad_wk - grad_f_numerical
+  import matplotlib.pyplot as plt
+  plt.figure()
+  plt.scatter(lon.flatten(), lat.flatten(), c=sph_grad_wk[:,:,:,0].flatten(), s=0.01)
+  #i = 1
+  #j = 1
+  #plt.scatter(lon[:,i,j].flatten(), lat[:,i,j].flatten(), c=sph_grad_wk[:,i,j,0].flatten(), s=0.01)
+
+  plt.colorbar()
+  plt.savefig("_figures/grad_wk_test.pdf")
   sph_grad_lat = -np.cos(grid.physical_coords[:, :, :, 1]) * np.sin(grid.physical_coords[:, :, :, 0])
   sph_grad_lon = -np.sin(grid.physical_coords[:, :, :, 1])
+  assert((inner_prod(grad_diff[:,:,:,0], grad_diff[:,:,:,0], grid)+
+          inner_prod(grad_diff[:,:,:,1], grad_diff[:,:,:,1], grid) ) < 1e-5)
   print(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])))
   print(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])))
   assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])) < 1e-4)

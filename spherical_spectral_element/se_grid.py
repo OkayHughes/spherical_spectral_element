@@ -20,6 +20,7 @@ class SpectralElementGrid():
     self.met_det = metdet
     self.mass_matrix = mass_mat
     self.mass_matrix_inv = inv_mass_mat
+    self.met_inv = np.einsum("fijgs, fijhs->fijgh", self.jacobian_inv, self.jacobian_inv)
     #note: this is for processor-local DSS
     self.vert_redundancy = vert_redundancy
     self.init_dss_matrix()
@@ -59,5 +60,8 @@ class SpectralElementGrid():
     # print(f"nonzero entries: {dss_matrix.nnz}, total entries: {(NELEM * npt * npt)**2}")
     self.dss_matrix = dss_matrix
     self.dss_matrix_unscaled = dss_matrix_unscaled
-  def init_sphere_to_cart(self):
-    pass
+  def init_sphere_to_tangent(self):
+    self.sphere_to_tangent = np.zeros((*self.physical_coords[:,:,:,0].shape, 2, 2))
+    self.sphere_to_tangent[:,:,:,0,0] = np.cos(self.physical_coords[:,:,:,0])
+    self.sphere_to_tangent[:,:,:,1,1] = 1.0
+    self.tangent_to_sphere = 1.0/self.sphere_to_tangent
