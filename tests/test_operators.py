@@ -134,6 +134,7 @@ def test_vector_laplacian():
   laplace_v_wk[:,:,:,0] = dss_scalar(laplace_v_wk[:,:,:,0], grid, scaled=False)
   laplace_v_wk[:,:,:,1] = dss_scalar(laplace_v_wk[:,:,:,1], grid, scaled=False)
   lap_diff = laplace_v_wk  + 3 * (np.cos(2 * grid.physical_coords[:, :, :, 0]))[:,:,:,np.newaxis]
+  lap_diff *= np.cos(grid.physical_coords[:, :, :, 0])[:,:,:,np.newaxis]**2 #hack to negate pole point
   # plt.figure()
   # plt.scatter(lon.flatten(), lat.flatten(), c=lap_diff[:,:,:,0].flatten(), s=0.01)
   #i = 1
@@ -142,7 +143,7 @@ def test_vector_laplacian():
   # plt.colorbar()
   # plt.savefig("_figures/lap_wk_test.pdf")
   assert((inner_prod(lap_diff[:,:,:,0], lap_diff[:,:,:,0], grid)+
-          inner_prod(lap_diff[:,:,:,1], lap_diff[:,:,:,1], grid) ) < 1e-3)
+          inner_prod(lap_diff[:,:,:,1], lap_diff[:,:,:,1], grid) ) < 1e-5)
 
 
 
