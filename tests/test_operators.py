@@ -4,7 +4,7 @@ from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redu
 from spherical_spectral_element.spectral import deriv
 from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk, sphere_gradient_wk_cov, vlaplace_sphere_wk
+from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod, sph_to_contra, sphere_gradient, sphere_divergence_wk, sphere_gradient_wk_cov, sphere_vec_laplacian_wk
 
 
 def test_vector_identites():
@@ -97,8 +97,6 @@ def test_analytic_soln():
   sph_grad_lon = -np.sin(grid.physical_coords[:, :, :, 1])
   assert((inner_prod(grad_diff[:,:,:,0], grad_diff[:,:,:,0], grid)+
           inner_prod(grad_diff[:,:,:,1], grad_diff[:,:,:,1], grid) ) < 1e-5)
-  print(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])))
-  print(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])))
   assert(np.max(np.abs(sph_grad_lat- grad_f_numerical[:,:,:,1])) < 1e-4)
   assert(np.max(np.abs(sph_grad_lon- grad_f_numerical[:,:,:,0])) < 1e-4)
 
@@ -114,7 +112,7 @@ def test_vector_laplacian():
   v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])
   lon = grid.physical_coords[:, :, :, 1]
   lat = grid.physical_coords[:, :, :, 0]
-  laplace_v_wk = vlaplace_sphere_wk(v, grid)
+  laplace_v_wk = sphere_vec_laplacian_wk(v, grid)
   laplace_v_wk[:,:,:,0] = dss_scalar(laplace_v_wk[:,:,:,0], grid, scaled=False)
   laplace_v_wk[:,:,:,1] = dss_scalar(laplace_v_wk[:,:,:,1], grid, scaled=False)
   import matplotlib.pyplot as plt
@@ -130,7 +128,7 @@ def test_vector_laplacian():
           inner_prod(lap_diff[:,:,:,1], lap_diff[:,:,:,1], grid) ) < 1e-5)
   v[:,:,:,0] = np.cos(grid.physical_coords[:, :, :, 0])**2
   v[:,:,:,1] = np.cos(grid.physical_coords[:, :, :, 0])**2
-  laplace_v_wk = vlaplace_sphere_wk(v, grid)
+  laplace_v_wk = sphere_vec_laplacian_wk(v, grid)
   laplace_v_wk[:,:,:,0] = dss_scalar(laplace_v_wk[:,:,:,0], grid, scaled=False)
   laplace_v_wk[:,:,:,1] = dss_scalar(laplace_v_wk[:,:,:,1], grid, scaled=False)
   lap_diff = laplace_v_wk  + 3 * (np.cos(2 * grid.physical_coords[:, :, :, 0]))[:,:,:,np.newaxis]

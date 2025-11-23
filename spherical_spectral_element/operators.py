@@ -46,10 +46,16 @@ def sphere_curl_wk_cov(s, grid, a=1.0):
   ds_contra[:,:,:,1] = - np.einsum("j,n,fjn,jm->fmn", deriv.gll_weights, deriv.gll_weights, s, deriv.deriv)
   return 1.0/a * contra_to_sph(ds_contra, grid)
 
-def vlaplace_sphere_wk(u, grid, a=1.0, nu_fact = 1.0):
+def sphere_vec_laplacian_wk(u, grid, a=1.0, nu_fact = 1.0, damp=False):
   div = sphere_divergence(u, grid, a=a) * nu_fact
   vor = sphere_vorticity(u, grid, a=a)
-  return sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
+  laplacian = sphere_gradient_wk_cov(div, grid, a=a) - sphere_curl_wk_cov(vor, grid, a=a)
+  if damp:
+    laplacian[:,:,:,0] += 2 * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :]
+                                * grid.met_det * u[:,:,:,0] * (1/a)**2)
+    laplacian[:,:,:,1] += 2 * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :]
+                                * grid.met_det * u[:,:,:,1] * (1/a)**2)
+  return laplacian
 
 
 
