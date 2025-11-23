@@ -1,10 +1,10 @@
 from ..config import np, npt
 from ..assembly import dss_scalar
-from ..operators import sphere_vorticity, sphere_gradient, sphere_divergence, sphere_laplacian
+from ..operators import sphere_vorticity, sphere_gradient, sphere_divergence, sphere_laplacian_wk, sphere_vec_laplacian_wk
 
 
 class shallow_water_model:
-  def __init__(self, panel_subdiv, grid, radius_earth=6371e3, omega=7.292e-5, gravity=9.81, update_u = True, alpha=0.0):
+  def __init__(self, panel_subdiv, grid, radius_earth=6371e3, omega=7.292e-5, gravity=9.81, update_u = True, alpha=0.0, diffusion=False):
     self.ts_workspace = []
     self.nstages = 0
     self.radius_earth = radius_earth
@@ -13,7 +13,11 @@ class shallow_water_model:
     self.grid = grid
     self.panel_subdiv = panel_subdiv
     self.alpha = alpha
-    self.nu = 1.0 * ((30.0 * self.radius_earth)/(self.panel_subdiv * 6371e3))**3.2
+    self.diffusion = diffusion
+    if diffusion:
+      self.nu = 2.5e15 * ((30.0 * self.radius_earth)/(self.panel_subdiv * 6371e3))**3.2
+    else:
+      self.nu = 0.0
   def create_state_struct(self):
     state = {"u": np.zeros((self.grid.num_elem, npt, npt, 2)),
             "h": np.zeros((self.grid.num_elem, npt, npt))}
@@ -32,17 +36,18 @@ class shallow_water_model:
                         np.sin(self.grid.physical_coords[:,:,:,0]) * np.cos(self.alpha))
     energy = 0.5 * (state_in["u"][:,:,:,0]**2 + state_in["u"][:,:,:,1]**2 ) + self.gravity * (state_in["h"] + self.hs)
     energy_grad = sphere_gradient(energy, self.grid, a=self.radius_earth)
-    state_out["u"][:,:,:,0] =   abs_vort * state_in["u"][:,:,:,1] - energy_grad[:,:,:,0]
+    state_out["u"][:,:,:,0] =    abs_vort * state_in["u"][:,:,:,1] - energy_grad[:,:,:,0]
     state_out["u"][:,:,:,1] = - abs_vort * state_in["u"][:,:,:,0] - energy_grad[:,:,:,1]
     state_out["h"] = -sphere_divergence(state_in["h"][:,:,:,np.newaxis] * state_in["u"], self.grid, a=self.radius_earth)
   def calc_hypervis(self, state_in, state_out):
     workspace = self.create_state_struct()
-    for comp_idx in range(2):
-      workspace["u"][:,:,:,comp_idx] = sphere_laplacian(state_in["u"][:,:,:,comp_idx], self.grid, a=self.radius_earth)
-      workspace["h"][:,:,:] = sphere_laplacian(state_in["h"][:,:,:], self.grid, a=self.radius_earth)
-      self.dss_state(workspace)
-      state_out["u"][:,:,:,comp_idx] = -self.nu * sphere_laplacian(workspace["u"][:,:,:,comp_idx], self.grid, a=self.radius_earth)
-      state_out["h"][:,:,:] = -self.nu * sphere_laplacian(workspace["h"][:,:,:], self.grid, a=self.radius_earth)
+    a = self.radius_earth
+    workspace["u"][:,:,:,:] = sphere_vec_laplacian_wk(state_in["u"], self.grid, a=a, damp=True)
+    workspace["h"][:,:,:] = sphere_laplacian_wk(state_in["h"][:,:,:], self.grid, a=a)
+    self.dss_state(state_out)
+    state_out["u"][:,:,:,:] = -self.nu * sphere_vec_laplacian_wk(workspace["u"], self.grid, a=a, damp=True)
+    state_out["h"][:,:,:] = -self.nu * sphere_laplacian_wk(workspace["h"][:,:,:], self.grid, a=a)
+    self.dss_state(state_out)
   def copy_state(self, state_to_copy, state_out):
     state_out["u"][:] = state_to_copy["u"][:]
     state_out["h"][:] = state_to_copy["h"][:]
@@ -52,7 +57,6 @@ class shallow_water_model:
     self.copy_state(state_in, state_out)
     for k in range(substeps):
       self.calc_hypervis(state_out, workspace)
-      self.dss_state(workspace)
       self.advance_state([state_out, workspace], workspace2, [1.0, dt/substeps])
       self.copy_state(workspace2, state_out)
   def advance_step_euler(self, state_in, state_out, dt):
@@ -83,7 +87,8 @@ class shallow_water_model:
   def simulate(self, end_time, u0_fn, h0_fn, hs_fn):
     state_n = self.create_state_struct()
     state_np1 = self.create_state_struct()
-    dt = 10.0 # todo: automatically calculate CFL from sw dispersion relation
+    state_tmp = self.create_state_struct()
+    dt = 100.0 * (30.0/self.panel_subdiv) # todo: automatically calculate CFL from sw dispersion relation
     self.hs = hs_fn(self.grid.physical_coords[:,:,:,0], self.grid.physical_coords[:,:,:,1])
     state_n["u"] = u0_fn(self.grid.physical_coords[:,:,:,0], self.grid.physical_coords[:,:,:,1])
     state_n["h"] = h0_fn(self.grid.physical_coords[:,:,:,0], self.grid.physical_coords[:,:,:,1])
@@ -91,11 +96,18 @@ class shallow_water_model:
     times = np.arange(0.0, end_time, dt)
     self.init_workspace(3)
     for t in times:
-      self.advance_step_ssprk3(state_n, state_np1, dt)
-      #self.advance_step_euler(state_n, state_np1, dt)
-
-      #self.advance_hypervis_euler(state_np1, state_n, dt, substeps=1)
-      #state_np1["u"][:] -= state_n["u"][:]
-      #state_np1["h"][:] -= state_n["h"][:]
-      state_n, state_np1 = state_np1, state_n
+      print(f"{t/end_time*100}%")
+      self.advance_step_ssprk3(state_n, state_tmp, dt)
+      #self.advance_step_euler(state_n, state_tmp, dt)
+      if self.diffusion:
+        self.advance_hypervis_euler(state_tmp, state_np1, dt, substeps=1)
+        #self.advance_hypervis_euler(state_n, state_np1, dt, substeps=1)
+      else:
+        state_np1, state_tmp = state_tmp, state_np1 
+      print(np.max(np.abs(state_np1["u"] - state_tmp["u"])))
+      state_n, state_np1 = state_np1, state_n 
+      assert(not np.any(np.isnan(state_n["u"])))
+      assert(not np.any(np.isnan(state_n["h"])))
+    #state_n["u"][:] -= state_np1["u"][:]
+    #state_n["h"][:] -= state_np1["h"][:]
     return t, state_n
