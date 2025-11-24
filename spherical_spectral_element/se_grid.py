@@ -1,7 +1,6 @@
 from .config import np, npt, jax_wrapper, is_jax
 from .spectral import deriv
 from scipy.sparse import coo_array
-
 from frozendict import frozendict
 
 
