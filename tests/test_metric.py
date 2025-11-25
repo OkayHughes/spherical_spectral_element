@@ -17,10 +17,10 @@ def test_gen_metric():
   for elem_idx in cube_redundancy.keys():
     for (i_idx, j_idx) in cube_redundancy[elem_idx].keys():
       for elem_idx_pair, i_idx_pair, j_idx_pair in cube_redundancy[elem_idx][(i_idx, j_idx)]:
-        try:
-          assert(np.max(np.abs(gll_latlon[elem_idx, i_idx, j_idx, :] - gll_latlon[elem_idx_pair, i_idx_pair, j_idx_pair, :])) < 1e-10)
-        except:
-          print(f"Position failure: local: {(inv_elem_id_fn(elem_idx), i_idx, j_idx)} {180/np.pi * gll_latlon[elem_idx][(i_idx, j_idx)]} pair: {(inv_elem_id_fn(elem_idx_pair), i_idx_pair, j_idx_pair)} {180/ np.pi * gll_latlon[elem_idx_pair][(i_idx_pair, j_idx_pair)]}")
+        #try:
+        assert(np.max(np.abs(gll_latlon[elem_idx, i_idx, j_idx, :] - gll_latlon[elem_idx_pair, i_idx_pair, j_idx_pair, :])) < 1e-10)
+        #except:
+          #print(f"Position failure: local: {(inv_elem_id_fn(elem_idx), i_idx, j_idx)} {180/np.pi * gll_latlon[elem_idx][(i_idx, j_idx)]} pair: {(inv_elem_id_fn(elem_idx_pair), i_idx_pair, j_idx_pair)} {180/ np.pi * gll_latlon[elem_idx_pair][(i_idx_pair, j_idx_pair)]}")
 
 
 def test_gen_mass_mat():
@@ -29,4 +29,4 @@ def test_gen_mass_mat():
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, cube_redundancy = metrics
-  assert(np.allclose(np.sum(grid.met_det * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :])), 4 * np.pi))
+  assert(np.allclose(np.sum(grid["met_det"] * (grid["gll_weights"][np.newaxis, :, np.newaxis] * grid["gll_weights"][np.newaxis, np.newaxis, :])), 4 * np.pi))

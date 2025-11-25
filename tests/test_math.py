@@ -60,8 +60,8 @@ def test_bilinear_cs():
   diff_plus = np.zeros(shape=(NFACES, 2))
   for i in range(npt):
     for j in range(npt):
-      alpha = deriv.gll_points[i]
-      beta = deriv.gll_points[j]
+      alpha = deriv["gll_points"][i]
+      beta = deriv["gll_points"][j]
       eps = 1e-4
       res = bilinear(face_position_2d[:, 0, :],
                      face_position_2d[:, 1, :],

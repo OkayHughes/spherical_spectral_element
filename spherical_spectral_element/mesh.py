@@ -14,8 +14,8 @@ def mesh_to_cart_bilinear(face_position):
   
   for i_idx in range(npt):
     for j_idx in range(npt):
-        alpha = deriv.gll_points[i_idx]
-        beta = deriv.gll_points[j_idx]
+        alpha = deriv["gll_points"][i_idx]
+        beta = deriv["gll_points"][j_idx]
         gll_position[:, i_idx, j_idx, :] = bilinear(face_position[:, 0, :],
                               face_position[:, 1, :],
                               face_position[:, 2, :],

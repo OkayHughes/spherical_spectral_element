@@ -2,7 +2,7 @@ from .config import np, npt, DEBUG
 from .spectral import deriv
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
-from .se_grid import SpectralElementGrid
+from .se_grid import create_spectral_element_grid
 def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
   NFACES = cube_points_2d.shape[0]
 
@@ -139,16 +139,16 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacob
 
   metdet = 1.0/rmetdet
 
-  mass_mat = metdet.copy() * (deriv.gll_weights[np.newaxis, :, np.newaxis] * deriv.gll_weights[np.newaxis, np.newaxis, :]) # denominator for weighted sum
+  mass_mat = metdet.copy() * (deriv["gll_weights"][np.newaxis, :, np.newaxis] * deriv["gll_weights"][np.newaxis, np.newaxis, :]) # denominator for weighted sum
 
   for local_face_idx in vert_redundancy_gll.keys():
     for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
       for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
-        mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (deriv.gll_weights[local_i] * deriv.gll_weights[local_j])
+        mass_mat[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * (deriv["gll_weights"][local_i] * deriv["gll_weights"][local_j])
 
   inv_mass_mat = 1.0/mass_mat
 
-  return SpectralElementGrid(gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll)
+  return create_spectral_element_grid(gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll)
 
 def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy):
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)

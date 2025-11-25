@@ -10,10 +10,10 @@ def test_dss():
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid  = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  vert_redundancy_gll = grid.vert_redundancy
+  vert_redundancy_gll = grid["vert_redundancy"]
   #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat,  = metrics
-  fn = np.zeros_like(grid.physical_coords[:, :, :, 0])
-  for face_idx in range(grid.physical_coords.shape[0]):
+  fn = np.zeros_like(grid["physical_coords"][:, :, :, 0])
+  for face_idx in range(grid["physical_coords"].shape[0]):
     for i_idx in range(npt):
       for j_idx in range(npt):
         fn[:] = 0.0
@@ -31,9 +31,9 @@ def test_dss_equiv():
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid  = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat,  = metrics
-  fn = np.cos(grid.physical_coords[:, :, :, 1]) * np.cos(grid.physical_coords[:, :, :, 0])
+  fn = np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0])
   assert(np.allclose(dss_scalar(fn, grid), fn))
-  ones = np.ones_like(grid.met_det)
+  ones = np.ones_like(grid["met_det"])
   ones_out = dss_scalar(ones, grid)
   assert(np.allclose(ones_out, ones))
   ones_out_for = dss_scalar_for(ones, grid)
@@ -46,7 +46,7 @@ def test_dss_equiv_rand():
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
   for _ in range(20):
-    fn_rand = np.random.uniform(size=grid.physical_coords[:, :, :, 1].shape)
+    fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
     assert(np.allclose(dss_scalar(fn_rand, grid), dss_scalar_for(fn_rand, grid)))
 
 
