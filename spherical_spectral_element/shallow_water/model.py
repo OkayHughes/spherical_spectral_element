@@ -39,7 +39,7 @@ def calc_rhs(state_in, grid, config):
                   state_in["u"][:, :, :, 1]**2) + config["gravity"] * (state_in["h"] + state_in["hs"])
   energy_grad = sphere_gradient(energy, grid, a=config["radius_earth"])
   u_tend = abs_vort * state_in["u"][:, :, :, 1] - energy_grad[:, :, :, 0]
-  v_tend = - abs_vort * state_in["u"][:, :, :, 0] - energy_grad[:, :, :, 1]
+  v_tend = -abs_vort * state_in["u"][:, :, :, 0] - energy_grad[:, :, :, 1]
   h_tend = -sphere_divergence(state_in["h"][:, :, :, jnp.newaxis] * state_in["u"], grid, a=config["radius_earth"])
   return create_state_struct(jnp.stack((u_tend, v_tend), axis=-1), h_tend, state_in["hs"])
 
