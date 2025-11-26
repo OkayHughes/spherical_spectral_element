@@ -1,6 +1,6 @@
 from .context import spherical_spectral_element
 from spherical_spectral_element.config import np, npt
-from spherical_spectral_element.math import bilinear, bilinear_jacobian
+from spherical_spectral_element.mathops import bilinear, bilinear_jacobian
 from spherical_spectral_element.cubed_sphere import gen_cube_topo
 from spherical_spectral_element.spectral import deriv
 

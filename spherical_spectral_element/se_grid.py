@@ -1,6 +1,10 @@
-from .config import np, npt
+from .config import np, npt, jax_wrapper, is_jax
 from .spectral import deriv
 from scipy.sparse import coo_array
+
+from frozendict import frozendict
+
+
 def init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll):
 
   NELEM = metdet.shape[0]
@@ -41,27 +45,38 @@ def create_spectral_element_grid(latlon,
                metdet, 
                mass_mat, 
                inv_mass_mat,
-               vert_redundancy):
+               vert_redundancy, jax=is_jax, device=""):
   dss_matrix, dss_matrix_unscaled, dss_triple = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy)
-  return {"physical_coords": latlon,
-          "jacobian": gll_to_sphere_jacobian,
-          "jacobian_inv": gll_to_sphere_jacobian_inv,
-          "recip_met_det": rmetdet,
-          "met_det": metdet,
-          "mass_mat": mass_mat,
-          "mass_matrix_inv": inv_mass_mat,
-          "met_inv": np.einsum("fijgs, fijhs->fijgh", 
+  if jax:
+    wrapper = jax_wrapper
+  else:
+    wrapper = lambda x: x
+  ret = {"physical_coords": wrapper(latlon),
+          "jacobian": wrapper(gll_to_sphere_jacobian),
+          "jacobian_inv": wrapper(gll_to_sphere_jacobian_inv),
+          "recip_met_det": wrapper(rmetdet),
+          "met_det": wrapper(metdet),
+          "mass_mat": wrapper(mass_mat),
+          "mass_matrix_inv": wrapper(inv_mass_mat),
+          "met_inv": wrapper(np.einsum("fijgs, fijhs->fijgh", 
                                gll_to_sphere_jacobian_inv, 
-                               gll_to_sphere_jacobian_inv),
-          "vert_redundancy": vert_redundancy,
-          "deriv": deriv["deriv"],
-          "gll_weights": deriv["gll_weights"],
+                               gll_to_sphere_jacobian_inv)),
+          "deriv": wrapper(deriv["deriv"]),
+          "gll_weights": wrapper(deriv["gll_weights"]),
           "npt": npt,
-          "dss_triple": dss_triple,
-          "num_elem": metdet.shape[0],
-          "dss_matrix": dss_matrix,
-          "dss_matrix_unscaled": dss_matrix_unscaled
+          "dss_triple": (wrapper(dss_triple[0]),
+                         wrapper(dss_triple[1]),
+                         wrapper(dss_triple[2]),
+                         wrapper(dss_triple[3])),
           }
+  if not jax:
+    ret["vert_redundancy"] = vert_redundancy
+    ret["dss_matrix"] = dss_matrix
+    ret["dss_matrix_unscaled"] = dss_matrix_unscaled
+  grid_dims = frozendict(N=metdet.size, shape=metdet.shape, npt=npt, num_elem=metdet.shape[0])
+  
+  return ret, grid_dims
+
 
 
 

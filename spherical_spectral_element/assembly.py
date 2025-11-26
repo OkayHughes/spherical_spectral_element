@@ -1,27 +1,57 @@
-from .config import np, npt
-from scipy.sparse import coo_array
-from .spectral import deriv
+from .config import np, is_jax, jnp, jit
+from functools import partial
+if is_jax:
+    import jax
 
 
-
-def dss_scalar_for(f, grid):
-  metdet = grid["met_det"]
-  inv_mass_mat = grid["mass_matrix_inv"]
-  vert_redundancy_gll = grid["vert_redundancy"]
-  gll_weights = grid["gll_weights"]
-  workspace = f.copy()
-  workspace *= metdet * (gll_weights[np.newaxis, :, np.newaxis] * gll_weights[np.newaxis, np.newaxis, :])
-  for local_face_idx in vert_redundancy_gll.keys():
-    for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
-      for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx][(local_i, local_j)]:
-        workspace[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * f[local_face_idx, local_i, local_j] * (gll_weights[local_i] * gll_weights[local_j])
-  workspace *= inv_mass_mat
-  return workspace
-
-def dss_scalar(f, grid, scaled=True):
-  if scaled:
-    return (grid["dss_matrix"]@f.flatten()).reshape(f.shape)
-  else:
-    return (grid["dss_matrix_unscaled"]@f.flatten()).reshape(f.shape)
+def dss_scalar_for(f, grid, *args):
+    metdet = grid["met_det"]
+    inv_mass_mat = grid["mass_matrix_inv"]
+    vert_redundancy_gll = grid["vert_redundancy"]
+    gll_weights = grid["gll_weights"]
+    workspace = f.copy()
+    workspace *= metdet * \
+        (gll_weights[np.newaxis, :, np.newaxis]
+         * gll_weights[np.newaxis, np.newaxis, :])
+    for local_face_idx in vert_redundancy_gll.keys():
+        for local_i, local_j in vert_redundancy_gll[local_face_idx].keys():
+            for remote_face_id, remote_i, remote_j in vert_redundancy_gll[local_face_idx]\
+                                                                         [(local_i, local_j)]:
+                workspace[remote_face_id, remote_i, remote_j] += metdet[local_face_idx, local_i, local_j] * \
+                    f[local_face_idx, local_i, local_j] * \
+                    (gll_weights[local_i] * gll_weights[local_j])
+    workspace *= inv_mass_mat
+    return workspace
 
 
+def dss_scalar_sparse(f, grid, *args, scaled=True):
+    if scaled:
+        return (grid["dss_matrix"]@f.flatten()).reshape(f.shape)
+    else:
+        return (grid["dss_matrix_unscaled"]@f.flatten()).reshape(f.shape)
+
+
+def segment_sum(data, segment_ids, N):
+    data = np.asarray(data)
+    s = np.zeros(N, dtype=data.dtype)
+    np.add.at(s, segment_ids, data)
+    return s
+
+
+@partial(jit, static_argnames=["dims", "scaled"])
+def dss_scalar_jax(f, grid, dims, scaled=True):
+    (data, data_un, rows, cols) = grid["dss_triple"]
+    if scaled:
+        relevant_data = f.flatten().take(cols) * data
+    else:
+        relevant_data = f.flatten().take(cols) * data_un
+    if is_jax:
+        return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+    else:
+        return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+
+
+if is_jax:
+    dss_scalar = dss_scalar_jax
+else:
+    dss_scalar = dss_scalar_sparse

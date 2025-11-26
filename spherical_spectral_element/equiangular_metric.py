@@ -1,4 +1,4 @@
-from .config import np, npt, DEBUG
+from .config import np, npt, DEBUG, is_jax
 from .spectral import deriv
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
@@ -129,7 +129,7 @@ def gen_metric_terms_equiangular(face_mask, cube_points_2d, cube_redundancy):
 
 
 
-def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacobian,  vert_redundancy_gll):
+def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacobian,  vert_redundancy_gll, jax=is_jax):
   gll_to_sphere_jacobian = np.einsum("fijpg,fijps->fijgs", cube_to_sphere_jacobian, gll_to_cube_jacobian)
   gll_to_sphere_jacobian[:, :, :, 1, :] *= np.cos(gll_latlon[:,:,:,0])[:, :, :, np.newaxis]
   gll_to_sphere_jacobian_inv = np.linalg.inv(gll_to_sphere_jacobian)
@@ -148,11 +148,11 @@ def generate_metric_terms(gll_latlon, gll_to_cube_jacobian, cube_to_sphere_jacob
 
   inv_mass_mat = 1.0/mass_mat
 
-  return create_spectral_element_grid(gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll)
+  return create_spectral_element_grid(gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat, vert_redundancy_gll, jax=jax)
 
-def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy):
+def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax):
   gll_position, gll_jacobian = mesh_to_cart_bilinear(face_position_2d)
   cube_redundancy =  gen_gll_redundancy(face_connectivity, vert_redundancy)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy) 
-  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy)
+  return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, jax=jax)
 

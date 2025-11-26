@@ -1,5 +1,5 @@
 from .context import spherical_spectral_element
-from spherical_spectral_element.config import npt, np, DEBUG
+from spherical_spectral_element.config import npt, jnp, np, DEBUG, jax_unwrapper, jax_wrapper, is_jax
 from spherical_spectral_element.constants import gravit, rearth
 from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
@@ -15,8 +15,8 @@ def test_sw_model():
   nx = 15
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  config = get_config_sw(alpha=np.pi/4, ne=15)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  config = get_config_sw(alpha=jnp.pi/4, ne=15)
   #model = shallow_water_model(nx, grid, alpha=np.pi/4, diffusion=False)
   u0 = 2.0 * np.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4/config["gravity"]
@@ -33,38 +33,44 @@ def test_sw_model():
     return h
   def williamson_tc2_hs(lat, lon):
     return np.zeros_like(lat)
-  u_init = williamson_tc2_u(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  h_init = williamson_tc2_h(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  hs_init = williamson_tc2_hs(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
+  u_init = jax_wrapper(williamson_tc2_u(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
+  h_init = jax_wrapper(williamson_tc2_h(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
+  hs_init = jax_wrapper(williamson_tc2_hs(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
   init_state = create_state_struct(u_init, h_init, hs_init)
 
   T = 4000.0
-  final_state = simulate_sw(T, init_state, grid, config, nx)
+  final_state = simulate_sw(T, nx, init_state, grid, config, dims)
   print(final_state["u"].dtype)
 
   diff_u = u_init - final_state["u"]
   diff_h = h_init - final_state["h"]
   assert(inner_prod(diff_u[:,:,:,0], diff_u[:,:,:,0], grid) < 1e-5)
   assert(inner_prod(diff_u[:,:,:,1], diff_u[:,:,:,1], grid) < 1e-5)
-  assert(inner_prod(diff_h, diff_h, grid)/np.max(h_init) < 1e-5)
+  assert(inner_prod(diff_h, diff_h, grid)/jnp.max(h_init) < 1e-5)
   if DEBUG:
     fig_dir = "_figures"
     makedirs(fig_dir, exist_ok=True)
     plt.figure()
     plt.title("U at time {t}")
-    lon = grid["physical_coords"][:,:,:,1]
-    lat = grid["physical_coords"][:,:,:,0]
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["u"][:,:,:,0].flatten())
+    lon = jax_unwrapper(grid["physical_coords"][:,:,:,1])
+    lat = jax_unwrapper(grid["physical_coords"][:,:,:,0])
+    plt.tricontourf(lon.flatten(), 
+                    lat.flatten(), 
+                    jax_unwrapper(final_state["u"][:,:,:,0].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "U_final.pdf"))
     plt.figure()
     plt.title("V at time {t}")
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["u"][:,:,:,1].flatten())
+    plt.tricontourf(lon.flatten(), 
+                    lat.flatten(), 
+                    jax_unwrapper(final_state["u"][:,:,:,1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "V_final.pdf"))
     plt.figure()
     plt.title("h at time {t}")
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["h"].flatten())
+    plt.tricontourf(lon.flatten(),
+                    lat.flatten(), 
+                    jax_unwrapper(final_state["h"].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "h_final.pdf"))
 
@@ -73,10 +79,12 @@ def test_galewsky():
   nx = 61
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
 
   config = get_config_sw(ne=15)
-
+  if is_jax:
+    import jax
+    print(jax.devices())
 
   deg = 100
   pts, weights = np.polynomial.legendre.leggauss(deg)
@@ -119,39 +127,43 @@ def test_galewsky():
     return np.zeros_like(lat)
   #T = 18000.0
   T = (144 * 3600)
-  u_init = galewsky_wind(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  h_init = galewsky_h(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  hs_init = galewsky_hs(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
+  u_init = jax_wrapper(galewsky_wind(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
+  h_init = jax_wrapper(galewsky_h(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
+  hs_init = jax_wrapper(galewsky_hs(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1]))
   init_state = create_state_struct(u_init, h_init, hs_init)
-  final_state = simulate_sw(T, init_state, grid, config, nx, diffusion=True)
+  final_state = simulate_sw(T, nx, init_state, grid, config, dims, diffusion=True)
   diff_u = u_init - final_state["u"]
   diff_h = h_init - final_state["h"]
   assert(not np.any(np.isnan(final_state["u"])))
   if DEBUG:
     fig_dir = "_figures"
     makedirs(fig_dir, exist_ok=True)
-    lon = grid["physical_coords"][:,:,:,1]
-    lat = grid["physical_coords"][:,:,:,0]
+    lon = jax_unwrapper(grid["physical_coords"][:,:,:,1])
+    lat = jax_unwrapper(grid["physical_coords"][:,:,:,0])
     levels = np.arange(-10+1e-4, 101, 10)
-    vort = dss_scalar(sphere_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid)  
+    vort = dss_scalar(sphere_vorticity(final_state["u"], grid, a=config["radius_earth"]), grid, dims)
     plt.figure()
     plt.title(f"U at time {T}s")
     #levels = None
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["u"][:,:,:,0].flatten(), levels = levels)
+    plt.tricontourf(lon.flatten(), lat.flatten(),
+                    jax_unwrapper(final_state["u"][:,:,:,0].flatten()), levels = levels)
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_U_final.pdf"))
     plt.figure()
     plt.title(f"V at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["u"][:,:,:,1].flatten())
+    plt.tricontourf(lon.flatten(), lat.flatten(), 
+                    jax_unwrapper(final_state["u"][:,:,:,1].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_V_final.pdf"))
     plt.figure()
     plt.title(f"h at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(), final_state["h"].flatten())
+    plt.tricontourf(lon.flatten(), lat.flatten(), 
+                    jax_unwrapper(final_state["h"].flatten()))
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_h_final.pdf"))
     plt.figure()
     plt.title(f"vorticity at time {T}s")
-    plt.tricontourf(lon.flatten(), lat.flatten(), vort.flatten(), vmin=-0.0002, vmax=0.0002)
+    plt.tricontourf(lon.flatten(), lat.flatten(), jax_unwrapper(vort.flatten()), 
+                    vmin=-0.0002, vmax=0.0002)
     plt.colorbar()
     plt.savefig(join(fig_dir, "galewsky_vort_final.pdf"))

@@ -1,5 +1,5 @@
 from .config import np, npt, DEBUG
-from .math import bilinear, bilinear_jacobian
+from .mathops import bilinear, bilinear_jacobian
 from .spectral import deriv
 from .grid_definitions import TOP_EDGE, LEFT_EDGE, RIGHT_EDGE, BOTTOM_EDGE 
 
