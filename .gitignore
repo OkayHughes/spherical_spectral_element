@@ -1,3 +1,5 @@
 __pycache__/
 *.py[cod]
+.flake8
+.vscode/
 tests/_figures
