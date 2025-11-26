@@ -1,6 +1,6 @@
-from .config import np, is_jax, jit
+from .config import np, use_jax, jit
 from functools import partial
-if is_jax:
+if use_jax:
     import jax
 
 
@@ -42,13 +42,13 @@ def dss_scalar_jax(f, grid, dims, scaled=True):
     relevant_data = f.flatten().take(cols) * data
   else:
     relevant_data = f.flatten().take(cols) * data_un
-  if is_jax:
+  if use_jax:
     return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
   else:
     return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
 
 
-if is_jax:
+if use_jax:
   dss_scalar = dss_scalar_jax
 else:
   dss_scalar = dss_scalar_sparse

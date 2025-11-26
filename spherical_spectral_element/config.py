@@ -4,22 +4,22 @@ import numpy as np
 DEBUG = True
 npt = 4
 
-is_jax = True
+use_jax = True
+use_cpu = True
 use_double = True
 
 if use_double:
-  eps = 1e-8
+  eps = 1e-11
 else:
   eps = 1e-6
 
-if is_jax:
+if use_jax:
   import jax.numpy as jnp
   import jax
-  print(jax.devices("cpu"))
-  # device = jax.devices("METAL")[0]
-  jax.config.update("jax_default_device", jax.devices("cpu")[0])
-  # jax.config.update("jax_default_device", jax.devices("METAL")[0])
-  jax.config.update("jax_enable_x64", True)
+  if use_cpu:
+    jax.config.update("jax_default_device", jax.devices("cpu")[0])
+  if use_double:
+    jax.config.update("jax_enable_x64", True)
 
   def jax_wrapper(x):
     return jnp.array(x)

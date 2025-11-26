@@ -1,4 +1,4 @@
-from spherical_spectral_element.config import jnp, np, DEBUG, jax_unwrapper, jax_wrapper, is_jax
+from spherical_spectral_element.config import jnp, np, DEBUG, jax_unwrapper, jax_wrapper, use_jax
 from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
@@ -86,7 +86,7 @@ def test_galewsky():
   grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
 
   config = get_config_sw(ne=15)
-  if is_jax:
+  if use_jax:
     import jax
     print(jax.devices())
 

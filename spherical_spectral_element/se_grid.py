@@ -1,4 +1,4 @@
-from .config import np, npt, jax_wrapper, is_jax
+from .config import np, npt, jax_wrapper, use_jax
 from .spectral import deriv
 from scipy.sparse import coo_array
 from frozendict import frozendict
@@ -49,7 +49,7 @@ def create_spectral_element_grid(latlon,
                                  mass_mat,
                                  inv_mass_mat,
                                  vert_redundancy,
-                                 jax=is_jax,
+                                 jax=use_jax,
                                  device=""):
   dss_matrix, dss_matrix_unscaled, dss_triple = init_dss_matrix(metdet, inv_mass_mat, vert_redundancy)
   if jax:
