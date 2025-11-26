@@ -1,18 +1,16 @@
-from .context import spherical_spectral_element
-from spherical_spectral_element.config import np, npt, jax_wrapper, is_jax, jnp
+from spherical_spectral_element.config import np, npt, jax_wrapper, is_jax
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.spectral import deriv
-from spherical_spectral_element.equiangular_metric import gen_metric_terms_equiangular, generate_metric_terms, gen_metric_from_topo
+from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
 from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar_jax, dss_scalar_sparse, dss_scalar
+
 
 def test_dss():
   nx = 3
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims  = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax)
   grid_nojax, _ = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
   vert_redundancy_gll = grid_nojax["vert_redundancy"]
-  #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat,  = metrics
   fn = np.zeros_like(grid["physical_coords"][:, :, :, 0])
   for face_idx in range(grid["physical_coords"].shape[0]):
     for i_idx in range(npt):
@@ -23,23 +21,22 @@ def test_dss():
           if (i_idx, j_idx) in vert_redundancy_gll[face_idx].keys():
             for remote_face_id, remote_i, remote_j in vert_redundancy_gll[face_idx][(i_idx, j_idx)]:
               fn[remote_face_id, remote_i, remote_j] = 1.0
-        assert(np.allclose(dss_scalar(fn, grid, dims), fn))
+        assert (np.allclose(dss_scalar(fn, grid, dims), fn))
+
 
 def test_dss_equiv():
   nx = 15
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims  = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
-  grid_jax, dims_jax  = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax)
-  #gll_latlon, gll_to_sphere_jacobian, gll_to_sphere_jacobian_inv, rmetdet, metdet, mass_mat, inv_mass_mat,  = metrics
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
+  grid_jax, dims_jax = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax)
   fn = np.cos(grid["physical_coords"][:, :, :, 1]) * np.cos(grid["physical_coords"][:, :, :, 0])
-  assert(np.allclose(dss_scalar(fn, grid_jax, dims), fn))
-  #assert(np.allclose(dss_scalar_jax(fn, grid, grid["N"]), fn))
+  assert (np.allclose(dss_scalar(fn, grid_jax, dims), fn))
   ones = np.ones_like(grid["met_det"])
   ones_out = dss_scalar(jax_wrapper(ones), grid_jax, dims)
-  assert(np.allclose(np.asarray(ones_out), ones))
+  assert (np.allclose(np.asarray(ones_out), ones))
   ones_out_for = dss_scalar_for(np.asarray(ones), grid)
-  assert(np.allclose(ones_out_for, ones))
+  assert (np.allclose(ones_out_for, ones))
 
 
 def test_dss_equiv_rand():
@@ -50,7 +47,5 @@ def test_dss_equiv_rand():
   grid_jax, dims_jax = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=is_jax)
   for _ in range(20):
     fn_rand = np.random.uniform(size=grid["physical_coords"][:, :, :, 1].shape)
-    assert(np.allclose(dss_scalar_sparse(fn_rand, grid), dss_scalar_for(fn_rand, grid)))
-    assert(np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
-
-
+    assert (np.allclose(dss_scalar_sparse(fn_rand, grid), dss_scalar_for(fn_rand, grid)))
+    assert (np.allclose(np.asarray(dss_scalar_jax(fn_rand, grid_jax, dims_jax)), dss_scalar_for(fn_rand, grid)))
