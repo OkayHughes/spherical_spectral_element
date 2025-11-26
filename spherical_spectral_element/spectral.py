@@ -16,12 +16,9 @@ def init_deriv(gll_points):
   coeffs = np.linalg.inv(leg_eval)
   return np.dot(leg_der, coeffs)
 
-gll_points = np.array([1.0, np.sqrt(1/5), -np.sqrt(1/5), -1.0])
 
-deriv = {"gll_points": np.array([1.0, np.sqrt(1/5), -np.sqrt(1/5), -1.0]),
-          "gll_weights": np.array([1/6, 5/6, 5/6, 1/6]),
-          "deriv": init_deriv(gll_points)}
+gll_points = np.array([1.0, np.sqrt(1 / 5), -np.sqrt(1 / 5), -1.0])
 
-
-
-
+deriv = {"gll_points": np.array([1.0, np.sqrt(1 / 5), -np.sqrt(1 / 5), -1.0]),
+         "gll_weights": np.array([1 / 6, 5 / 6, 5 / 6, 1 / 6]),
+         "deriv": init_deriv(gll_points)}
