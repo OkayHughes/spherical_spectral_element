@@ -1,4 +1,4 @@
-from ..config import jnp, jit
+from ..config import jnp, jit, versatile_assert
 from ..assembly import dss_scalar
 from ..operators import sphere_vorticity, sphere_gradient, sphere_divergence
 from ..operators import sphere_laplacian_wk, sphere_vec_laplacian_wk
@@ -102,28 +102,28 @@ def advance_step_ssprk3(state0, dt, grid, config, dims):
                                                    2.0 / 3.0 * dt])
 
 
-# @partial(jit, static_argnames=["dims", "diffusion", "ne", "end_time"])
-def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False):
+@partial(jit, static_argnames=["dims", "diffusion", "ne", "end_time", "step_type"])
+def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, step_type="ssprk3"):
   dt = 100.0 * (30.0 / ne)  # todo: automatically calculate CFL from sw dispersion relation
-  # hs = hs_fn(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  # u0 = u0_fn(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
-  # h0 = h0_fn(grid["physical_coords"][:,:,:,0], grid["physical_coords"][:,:,:,1])
   state_n = state_in
   t = 0.0
   times = jnp.arange(0.0, end_time, dt)
   k = 0
   for t in times:
-    print(f"{k/len(times)*100}%")
-    state_tmp = advance_step_ssprk3(state_n, dt, grid, config, dims)
-    # state_tmp = advance_step_euler(state_n, dt, grid, config)
+    print(f"{k/len(times-1)*100}%")
+    if step_type == "ssprk3":
+      state_tmp = advance_step_ssprk3(state_n, dt, grid, config, dims)
+    elif step_type == "euler":
+      state_tmp = advance_step_euler(state_n, dt, grid, config)
+
     if diffusion:
+      
       state_np1 = advance_hypervis_euler(state_tmp, dt, grid, config, dims, substeps=1)
     else:
       state_np1 = state_tmp
     state_n, state_np1 = state_np1, state_n
-    # assert(not jnp.any(jnp.isnan(state_n["u"])))
-    # assert(not jnp.any(jnp.isnan(state_n["h"])))
+    
+    versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["u"]))))
+    versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["h"]))))
     k += 1
-  # state_n["u"][:] -= state_np1["u"][:]
-  # state_n["h"][:] -= state_np1["h"][:]
   return state_n

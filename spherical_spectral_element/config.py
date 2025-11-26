@@ -27,6 +27,9 @@ if use_jax:
   def jax_unwrapper(x):
     return np.asarray(x)
   jit = jax.jit
+  
+  def versatile_assert(should_be_true):
+    return
 else:
   import numpy as jnp
 
@@ -38,3 +41,6 @@ else:
 
   def jit(func, *_, **__):
     return func
+  
+  def versatile_assert(should_be_true):
+    assert should_be_true
