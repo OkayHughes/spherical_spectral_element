@@ -22,33 +22,33 @@ def dss_scalar_for(f, grid, *args):
 
 
 def dss_scalar_sparse(f, grid, *args, scaled=True):
-    if scaled:
-        return (grid["dss_matrix"] @ f.flatten()).reshape(f.shape)
-    else:
-        return (grid["dss_matrix_unscaled"] @ f.flatten()).reshape(f.shape)
+  if scaled:
+    return (grid["dss_matrix"] @ f.flatten()).reshape(f.shape)
+  else:
+    return (grid["dss_matrix_unscaled"] @ f.flatten()).reshape(f.shape)
 
 
 def segment_sum(data, segment_ids, N):
-    data = np.asarray(data)
-    s = np.zeros(N, dtype=data.dtype)
-    np.add.at(s, segment_ids, data)
-    return s
+  data = np.asarray(data)
+  s = np.zeros(N, dtype=data.dtype)
+  np.add.at(s, segment_ids, data)
+  return s
 
 
 @partial(jit, static_argnames=["dims", "scaled"])
 def dss_scalar_jax(f, grid, dims, scaled=True):
-    (data, data_un, rows, cols) = grid["dss_triple"]
-    if scaled:
-        relevant_data = f.flatten().take(cols) * data
-    else:
-        relevant_data = f.flatten().take(cols) * data_un
-    if is_jax:
-        return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
-    else:
-        return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  (data, data_un, rows, cols) = grid["dss_triple"]
+  if scaled:
+    relevant_data = f.flatten().take(cols) * data
+  else:
+    relevant_data = f.flatten().take(cols) * data_un
+  if is_jax:
+    return jax.ops.segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
+  else:
+    return segment_sum(relevant_data, rows, dims["N"]).reshape(dims["shape"])
 
 
 if is_jax:
-    dss_scalar = dss_scalar_jax
+  dss_scalar = dss_scalar_jax
 else:
-    dss_scalar = dss_scalar_sparse
+  dss_scalar = dss_scalar_sparse
