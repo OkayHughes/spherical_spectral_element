@@ -19,8 +19,8 @@ def init_dss_matrix(metdet, inv_mass_mat, vert_redundancy_gll):
   for face_idx in range(NELEM):
     for i_idx in range(npt):
       for j_idx in range(npt):
-        data.append(metdet[face_idx, i_idx, j_idx] * ((deriv["gll_weights"][i_idx] * deriv["gll_weights"][j_idx])
-                                                      * inv_mass_mat[face_idx, i_idx, j_idx]))
+        data.append(metdet[face_idx, i_idx, j_idx] * ((deriv["gll_weights"][i_idx] * deriv["gll_weights"][j_idx]) *
+                                                      inv_mass_mat[face_idx, i_idx, j_idx]))
         data_un.append(inv_mass_mat[face_idx, i_idx, j_idx])
         rows.append(index_hack[face_idx, i_idx, j_idx])
         cols.append(index_hack[face_idx, i_idx, j_idx])
