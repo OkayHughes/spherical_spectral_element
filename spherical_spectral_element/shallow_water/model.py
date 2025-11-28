@@ -117,12 +117,11 @@ def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, ste
       state_tmp = advance_step_euler(state_n, dt, grid, config)
 
     if diffusion:
-      
       state_np1 = advance_hypervis_euler(state_tmp, dt, grid, config, dims, substeps=1)
     else:
       state_np1 = state_tmp
     state_n, state_np1 = state_np1, state_n
-    
+
     versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["u"]))))
     versatile_assert(jnp.logical_not(jnp.any(jnp.isnan(state_n["h"]))))
     k += 1
