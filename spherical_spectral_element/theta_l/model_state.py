@@ -1,4 +1,4 @@
-from ..config import np, use_jax, partial, vmap_1d_apply
+from ..config import np, vmap_1d_apply
 from ..assembly import dss_scalar, dss_scalar_for
 
 
@@ -13,17 +13,17 @@ def wrap_model_struct(u, vtheta_dpi, dpi, phi_surf, phi_i=0.0, w_i=0.0):
   return state
 
 
-
 def dss_scalar_3d(variable, h_grid, dims, scaled=True):
-  dss_onlyarg = lambda vec: dss_scalar(vec, h_grid, dims, scaled=scaled)
+  def dss_onlyarg(vec):
+    return dss_scalar(vec, h_grid, dims, scaled=scaled)
   return vmap_1d_apply(dss_onlyarg, variable, -1, -1)
+
 
 def dss_scalar_3d_for(variable, h_grid, dims, scaled=True):
   levs = []
   for lev_idx in range(variable.shape[-1]):
     levs.append(dss_scalar_for(variable[:, :, :, lev_idx], h_grid))
   return np.stack(levs, axis=-1)
-
 
 
 def dss_model_state(state_in, h_grid, dims, scaled=True, hydrostatic=True):

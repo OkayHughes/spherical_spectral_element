@@ -45,9 +45,9 @@ def g_from_z(z, config, deep=False):
   radius_earth = config["radius_earth"]
   if deep:
     g = config["gravity"] * (radius_earth /
-                            (z + radius_earth))**2
+                             (z + radius_earth))**2
   else:
-    g = config["gravity"] 
+    g = config["gravity"]
   return g
 
 
