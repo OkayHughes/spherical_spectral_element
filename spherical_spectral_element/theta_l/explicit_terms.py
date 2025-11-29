@@ -40,12 +40,13 @@ def calc_shared_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep
   v_over_r_hat_i = model_to_interface(u / r_hat_m[:, :, :, jnp.newaxis])
   div_dp = sphere_divergence_3d(dpi[:, :, :, :, jnp.newaxis] * u /
                                 r_hat_m[:, :, :, :, jnp.newaxis], h_grid, config)
+  u_i = vel_model_to_interface(u, dpi, dpi_i)
   return (phi_i, phi, dpi_i, pnh, exner,
           r_hat_i, mu, r_hat_m, z, r_m, g,
           fcor, fcorcos, w_m,
           grad_w_i, grad_exner, vtheta,
           grad_phi_i, v_over_r_hat_i,
-          div_dp)
+          div_dp, u_i)
 
 
 def vorticity_term(u, fcor, r_hat_m, h_grid, config):
@@ -68,7 +69,7 @@ def grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config):
   return -w2_grad_sph
 
 
-def w_vorticity_correction(w_i, grad_w_i, r_hat_m):
+def w_vorticity_correction_term(w_i, grad_w_i, r_hat_m):
   w_grad_w_m = interface_to_model_vec(w_i[:, :, :, :, jnp.newaxis] * grad_w_i)
   w_grad_w_m /= r_hat_m[:, :, :, :, jnp.newaxis]
   return w_grad_w_m
@@ -78,7 +79,7 @@ def u_metric_term(u, w_m, r_m):
   return -w_m[:, :, :, :, jnp.newaxis] * u / r_m[:, :, :, jnp.newaxis]
 
 
-def u_nct(w_m, fcorcos):
+def u_nct_term(w_m, fcorcos):
   return -jnp.stack((w_m, jnp.zeros_like(w_m)), axis=-1) * fcorcos
 
 
@@ -96,7 +97,7 @@ def pgrad_phi_term(mu, grad_phi_i, r_hat_m):
   return -pgf_gradphi_m
 
 
-def w_advection(v_over_r_hat_i, grad_w_i):
+def w_advection_term(v_over_r_hat_i, grad_w_i):
   v_grad_w_i = (v_over_r_hat_i[:, :, :, 0] * grad_w_i[:, :, :, 0] +
                 v_over_r_hat_i[:, :, :, 1] * grad_w_i[:, :, :, 1])
   return -v_grad_w_i
@@ -121,7 +122,7 @@ def phi_advection_term(v_over_r_hat_i, grad_phi_i):
   return -v_grad_phi_i
 
 
-def phi_acceleration_v(g, w_i):
+def phi_acceleration_v_term(g, w_i):
   return g * w_i
 
 
@@ -141,7 +142,7 @@ def dpi_divergence_term(div_dp):
   return -div_dp
 
 
-def explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=False):
+def explicit_tend(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
   dpi = state["dpi"]
   u = state["u"]
   w_i = state["w_i"]
@@ -152,12 +153,10 @@ def explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=False):
    fcor, fcorcos, w_m,
    grad_w_i, grad_exner, vtheta,
    grad_phi_i, v_over_r_hat_i,
-   div_dp) = calc_shared_quantities(state, h_grid,
-                                    v_grid, config,
-                                    hydrostatic=hydrostatic,
-                                    deep=deep)
-
-  u_i = vel_model_to_interface(u, dpi, dpi_i)
+   div_dp, u_i) = calc_shared_quantities(state, h_grid,
+                                         v_grid, config,
+                                         hydrostatic=hydrostatic,
+                                         deep=deep)
 
   u_tend = (vorticity_term(u, fcor, r_hat_m, h_grid, config) +
             grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config) +
@@ -165,12 +164,12 @@ def explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=False):
             pgrad_phi_term(mu, grad_phi_i, r_hat_m))
   if not hydrostatic:
     u_tend += (grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config) +
-               w_vorticity_correction(w_i, grad_w_i, r_hat_m))
-  if deep:
-    u_tend += (u_metric_term(u, w_m, r_m) +
-               u_nct(w_m, fcorcos))
+               w_vorticity_correction_term(w_i, grad_w_i, r_hat_m))
+    if deep:
+      u_tend += (u_metric_term(u, w_m, r_m) +
+                 u_nct_term(w_m, fcorcos))
   if not hydrostatic:
-    w_tend = (w_advection(v_over_r_hat_i, grad_w_i) +
+    w_tend = (w_advection_term(v_over_r_hat_i, grad_w_i) +
               w_buoyancy_term(g, mu))
     if deep:
       w_tend += (w_metric_term(u, r_m) +
@@ -179,7 +178,7 @@ def explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=False):
     w_tend = 0.0
   if not hydrostatic:
     phi_tend = (phi_advection_term(v_over_r_hat_i, grad_phi_i) +
-                phi_acceleration_v(g, w_i))
+                phi_acceleration_v_term(g, w_i))
   else:
     phi_tend = 0.0
 
@@ -188,16 +187,111 @@ def explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=False):
   return wrap_model_struct(u_tend, vtheta_dpi_tend, dpi_tend, state["phi_surf"], phi_tend, w_tend)
 
 
-def calc_energy_quantities(state, h_grid, v_grid, config, hydrostatic=True, deep=False):
+def calc_energy_quantities(state, h_grid, v_grid, config, deep=False):
   (phi_i, phi, dpi_i, pnh, exner,
    r_hat_i, mu, r_hat_m, z, r_m, g,
    fcor, fcorcos, w_m,
    grad_w_i, grad_exner, vtheta,
    grad_phi_i, v_over_r_hat_i,
-   div_dp) = calc_shared_quantities(state, h_grid,
-                                    v_grid, config,
-                                    hydrostatic=hydrostatic,
-                                    deep=deep)
+   div_dp, u_i) = calc_shared_quantities(state, h_grid,
+                                         v_grid, config,
+                                         hydrostatic=False,
+                                         deep=deep)
+  dpi_i_integral = jnp.stack((dpi_i[:, :, :, 0] / 2.0,
+                              dpi_i[:, :, :, 1:-1],
+                              dpi_i[:, :, :, -1] / 2.0), axis=-1)
+  u = state["u"]
+  dpi = state["dpi"]
+  w_i = state["w_i"]
+  vtheta_dpi = state["vtheta_dpi"]
+  u1 = u[:, :, :, :, 0]
+  u2 = u[:, :, :, :, 0]
+  grad_kinetic_energy_h = grad_kinetic_energy_h_term(u, r_hat_m, h_grid, config)
+  dpi_divergence = dpi_divergence_term(div_dp)
+  phi_acceleration_v = phi_acceleration_v_term(g, w_i)
+  w_buoyancy = w_buoyancy_term(g, mu)
+  pgrad_pressure = pgrad_pressure_term(vtheta, grad_exner, exner, r_hat_m, h_grid, config)
+  pgrad_phi = pgrad_phi_term(mu, grad_phi_i, r_hat_m)
+  vtheta_divergence = vtheta_divergence_term(u, vtheta_dpi, vtheta, div_dp, dpi, r_hat_m, h_grid, config)
+  w_vorticity = w_vorticity_correction_term(w_i, grad_w_i, r_hat_m)
+  w_advection = w_advection_term(v_over_r_hat_i, grad_w_i)
+  u_metric = u_metric_term(u, w_m, r_m)
+  w_metric = w_metric_term(u, r_m)
+  u_nct = u_nct_term(w_m, fcorcos)
+  w_nct = w_nct_term(u_i, fcorcos)
+  grad_kinetic_energy_v = grad_kinetic_energy_v_term(w_i, r_hat_m, h_grid, config)
+  vorticity = vorticity_term(u, fcor, r_hat_m, h_grid, config)
+  phi_advection = phi_advection_term(v_over_r_hat_i, grad_phi_i)
+
+  ke_ke_1_a = jnp.sum(dpi * (u1 * grad_kinetic_energy_h[:, :, :, :, 0] +
+                             u1 * grad_kinetic_energy_h[:, :, :, :, 1]), axis=-1)
+  ke_ke_1_b = jnp.sum(1.0 / 2.0 * (u1**2 + u2**2) * dpi_divergence, axis=-1)
+
+  ke_ke_2_a = jnp.sum(dpi * (u1 * grad_kinetic_energy_v[:, :, :, :, 0] +
+                             u1 * grad_kinetic_energy_v[:, :, :, :, 1]), axis=-1)
+  ke_ke_2_b = jnp.sum(1.0 / 2.0 * w_m**2 * dpi_divergence, axis=-1)
+
+  ke_pe_1_a = jnp.sum(dpi_i_integral * (w_buoyancy - mu * g), axis=-1)
+  ke_pe_1_b = jnp.sum(dpi_i_integral * phi_acceleration_v, axis=-1)
+
+  ke_ie_1_a = jnp.sum(dpi_i_integral * mu * phi_acceleration_v, axis=-1)
+  ke_ie_1_b = jnp.sum(dpi_i_integral * w_i * (w_buoyancy + g), axis=-1)
+
+  ke_ie_2_a = jnp.sum(dpi * (u1 * pgrad_pressure[:, :, :, :, 0] +
+                             u2 * pgrad_pressure[:, :, :, :, 1]), axis=-1)
+  ke_ie_2_b = jnp.sum(config["cp"] * exner * vtheta_divergence, axis=-1)
+
+  ke_ie_3_a = jnp.sum(dpi * (u1 * pgrad_phi[:, :, :, :, 0] +
+                             u2 * pgrad_phi[:, :, :, :, 1]), axis=-1)
+  ke_ie_3_b = jnp.sum(dpi_i_integral * mu * phi_advection, axis=-1)
+
+  ke_ke_3_a = jnp.sum(dpi * (u1 * w_vorticity[:, :, :, :, 0] +
+                             u2 * w_vorticity[:, :, :, :, 1]), axis=-1)
+  ke_ke_3_b = jnp.sum(dpi_i_integral * w_i * w_advection, axis=-1)
+
+  ke_ke_4_a = jnp.sum(dpi * u1 * vorticity[:, :, :, :, 0], axis=-1)
+  ke_ke_4_b = jnp.sum(dpi * u2 * vorticity[:, :, :, :, 1], axis=-1)
+
+  pe_pe_1_a = jnp.sum(phi * dpi_divergence, axis=-1)
+  pe_pe_1_b = jnp.sum(dpi_i_integral * phi_advection, axis=-1)
+
+  ke_ke_5_a = jnp.sum(dpi * (u1 * u_metric[:, :, :, :, 0] +
+                             u2 * u_metric[:, :, :, :, 1]), axis=-1)
+  ke_ke_5_b = jnp.sum(dpi * w_i * w_metric, axis=-1)
+
+  ke_ke_6_a = jnp.sum(dpi * u1 * u_nct, axis=-1)
+  ke_ke_6_b = jnp.sum(dpi_i_integral * w_i * w_nct, axis=-1)
+
+  tends = explicit_tend(state, h_grid, v_grid, config, hydrostatic=False, deep=deep)
+  u_tend = tends["u"]
+  ke_tend_emp = jnp.sum(dpi * (u1 * u_tend[:, :, :, :, 0] +
+                               u2 * u_tend[:, :, :, :, 1]), axis=-1)
+
+  ke_tend_emp += jnp.sum(dpi_i_integral * w_i * tends["w_i"],
+                         axis=-1)
+
+  ke_tend_emp += jnp.sum((u1**2 + u2**2) / 2.0 * tends["dpi"], axis=-1)
+
+  pe_tend_emp = jnp.sum(phi * tends["dpi"], axis=-1)
+  pe_tend_emp += jnp.sum(dpi_i_integral * tends["phi_i"], axis=-1)
+
+  ie_tend_emp = jnp.sum(config["cp"] * exner * tends["vtheta_dpi"], axis=-1)
+  ie_tend_emp = jnp.sum(mu * dpi_i_integral * tends["phi_i"], axis=-1)
+
+  return {"pairs": {"ke_ke_1": (ke_ke_1_a, ke_ke_1_b),
+                    "ke_ke_2": (ke_ke_2_a, ke_ke_2_b),
+                    "ke_ke_3": (ke_ke_3_a, ke_ke_3_b),
+                    "ke_ke_4": (ke_ke_4_a, ke_ke_4_b),
+                    "ke_ke_5": (ke_ke_5_a, ke_ke_5_b),
+                    "ke_ke_6": (ke_ke_6_a, ke_ke_6_b),
+                    "ke_pe_1": (ke_pe_1_a, ke_pe_1_b),
+                    "pe_pe_1": (pe_pe_1_a, pe_pe_1_b),
+                    "ke_ie_1": (ke_ie_1_a, ke_ie_1_b),
+                    "ke_ie_2": (ke_ie_2_a, ke_ie_2_b),
+                    "ke_ie_3": (ke_ie_3_a, ke_ie_3_b)},
+          "empirical": {"ke": ke_tend_emp,
+                        "ie": ie_tend_emp,
+                        "pe": pe_tend_emp}}
 
 
 def lower_boundary_correction(state0, state1, dt, h_grid, v_grid, dims, hydrostatic=True):
