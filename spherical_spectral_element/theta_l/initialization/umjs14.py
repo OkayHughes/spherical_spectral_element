@@ -1,4 +1,4 @@
-from ..config import jnp
+from ...config import jnp
 
 
 def get_umjs_config(T0E=310,
@@ -107,9 +107,9 @@ def get_r_hat(z, config, deep=False):
   # note: should be separate from model code.
   # so constant-g equation set can be used
   if deep:
-    r_hat = jnp.ones_like(z)
-  else:
     r_hat = (z + config["radius_earth"]) / config["radius_earth"]
+  else:
+    r_hat = jnp.ones_like(z)
   return r_hat
 
 
@@ -141,6 +141,7 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 
   inttermT = ((r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**K -
               K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**(K + 2))
+
   temperature = 1.0 / (r_hat**2 * (tau1 - tau2 * inttermT))
   pressure = config["p0"] * jnp.exp(-config["gravity"] / config["Rgas"] *
                                     (inttau1 - inttau2 * inttermT))
@@ -157,12 +158,12 @@ def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
 def evaluate_state(lat, lon, z, config, deep=False, mountain=False, moist=False):
   K = config["K"]
   inttau2 = get_inttau2(z, config)
-  r_hat = get_r_hat(z, deep=deep)
+  r_hat = get_r_hat(z, config, deep=deep)
   cos_lat = jnp.cos(lat)[:, :, :, jnp.newaxis]
   inttermU = ((r_hat * cos_lat)**(K - 1.0) -
               (r_hat * cos_lat)**(K + 1.0))
   pressure, temp = evaluate_pressure_temperature(z, lat, config, deep=deep)
-  bigU = (config["gravity"] / config["radius_earth"] *
+  bigU = (config["gravity"] / config["radius_earth"] * K *
           inttau2 * inttermU * temp)
 
   if deep:
@@ -187,7 +188,7 @@ def evaluate_state(lat, lon, z, config, deep=False, mountain=False, moist=False)
 
   # todo: handle pert
 
-  return u, v, temp_v, pressure, q_vapor
+  return u, v, pressure, temp_v, q_vapor
 
 
 def great_circle_dist(lat, lon, config):

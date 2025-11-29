@@ -43,8 +43,11 @@ def z_from_phi(phi, config, deep=False):
 
 def g_from_z(z, config, deep=False):
   radius_earth = config["radius_earth"]
-  g = config["gravity"] * (radius_earth /
-                           (z + radius_earth))**2
+  if deep:
+    g = config["gravity"] * (radius_earth /
+                            (z + radius_earth))**2
+  else:
+    g = config["gravity"] 
   return g
 
 
@@ -56,7 +59,7 @@ def g_from_phi(phi, config, deep=False):
 def r_hat_from_phi(phi, config, deep=False):
   radius_earth = config["radius_earth"]
   if deep:
-    r_hat = (z_from_phi(phi, config, deep=True) + radius_earth) / radius_earth
+    r_hat = (z_from_phi(phi, config, deep=deep) + radius_earth) / radius_earth
   else:
     r_hat = jnp.ones_like(phi)
   return r_hat

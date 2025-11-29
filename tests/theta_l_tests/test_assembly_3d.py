@@ -25,6 +25,7 @@ def test_dss_3d():
                 fn[remote_face_id, remote_i, remote_j, lev_idx] = 1.0
             assert (np.allclose(dss_scalar_3d(fn, grid, dims), fn))
 
+
 def test_dss_equiv_3d_rand():
   nx = 15
   nlev = 5
