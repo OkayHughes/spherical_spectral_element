@@ -10,11 +10,11 @@ def create_vertical_grid(hybrid_a_i, hybrid_b_i, p0):
   return v_grid
 
 
-def mass_from_coordinate_midlev(ps, h_grid, v_grid):
-  return (v_grid["reference_pressure"] * v_grid["hybrid_b_m"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] +
-          v_grid["hybrid_a_m"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] * ps[:, :, :, jnp.newaxis])
+def mass_from_coordinate_midlev(ps, v_grid):
+  return (v_grid["reference_pressure"] * v_grid["hybrid_a_m"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] +
+          v_grid["hybrid_b_m"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] * ps[:, :, :, jnp.newaxis])
 
 
-def mass_from_coordinate_interface(ps, h_grid, v_grid):
-  return (v_grid["reference_pressure"] * v_grid["hybrid_b_i"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] +
-          v_grid["hybrid_a_i"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] * ps[:, :, :, jnp.newaxis])
+def mass_from_coordinate_interface(ps, v_grid):
+  return (v_grid["reference_pressure"] * v_grid["hybrid_a_i"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] +
+          v_grid["hybrid_b_i"][jnp.newaxis, jnp.newaxis, jnp.newaxis, :] * ps[:, :, :, jnp.newaxis])
