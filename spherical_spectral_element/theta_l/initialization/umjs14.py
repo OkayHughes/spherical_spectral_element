@@ -1,18 +1,19 @@
 from ..config import jnp
 
+
 def get_umjs_config(T0E=310,
                     T0P=240,
                     B=2.0,
                     K=3.0,
                     lapse=0.005,
                     pertu0=0.5,
-                    pertr=1.0/6.0,
+                    pertr=1.0 / 6.0,
                     pertup=1.0,
                     pertexpr=0.1,
-                    pertlon=jnp.pi/9.0,
-                    pertlat=2.0*jnp.pi/9.0,
+                    pertlon=jnp.pi / 9.0,
+                    pertlat=2.0 * jnp.pi / 9.0,
                     pertz=15000,
-                    moistqlat=2.0 * np.pi/9.0,
+                    moistqlat=2.0 * jnp.pi / 9.0,
                     moistqp=34000.0,
                     moisttr=0.1,
                     moistq0=0.018,
@@ -20,22 +21,22 @@ def get_umjs_config(T0E=310,
                     moisteps=0.622,
                     moistT0=273.16,
                     moistE0Ast=610.78,
-                    p0 = 1e5,
+                    p0=1e5,
                     radius_earth=6371e3,
-                    period_earth = 7.292e-5,
+                    period_earth=7.292e-5,
                     Rgas=287.1,
                     Rvap=461.50,
                     gravity=9.81,
                     model_config=None,
                     alpha=0.5):
-  moistqs=1e-12
-  dx_epsilon=1e-5
+  moistqs = 1e-12
+  dx_epsilon = 1e-5
   if model_config:
     radius_earth = model_config["radius_earth"]
     period_earth = model_config["period_earth"]
     Rgas = model_config["Rgas"]
     Rvap = model_config["Rvap"]
-    gravity = model_config["gravity"] 
+    gravity = model_config["gravity"]
   return {"T0E": T0E,
           "T0P": T0P,
           "B": B,
@@ -53,8 +54,8 @@ def get_umjs_config(T0E=310,
           "moistqp": moistqp,
           "moisttr": moisttr,
           "moistqs": moistqs,
-          "moistq0": moistq0
-          "moistqr": moistqr:
+          "moistq0": moistq0,
+          "moistqr": moistqr,
           "moisteps": moisteps,
           "moistT0": moistT0,
           "moistE0Ast": moistE0Ast,
@@ -67,32 +68,40 @@ def get_umjs_config(T0E=310,
           "alpha": alpha,
           }
 
+
 def get_T0(config):
   return (config["alpha"] * config["T0E"] +
           (1.0 - config["alpha"]) * config["T0P"])
 
+
 def get_constH(config):
   return config["Rgas"] * get_T0(config) / config["gravity"]
 
+
 def get_constA(config):
-  return 1.0/config["lapse"]
+  return 1.0 / config["lapse"]
+
 
 def get_constB(config):
   T0 = get_T0(config)
   return (T0 - config["T0P"]) / (T0 * config["T0P"])
 
+
 def get_scaledZ(z, config):
   return z / (config["B"] * get_constH(config))
+
 
 def get_inttau2(z, config):
   return (get_constC(config) * z *
           jnp.exp(-get_scaledZ(z, config)**2))
+
 
 def get_constC(config):
   T0E = config["T0E"]
   T0P = config["T0P"]
   return (0.5 * (config["K"] + 2.0) *
           (T0E - T0P) / (T0E * T0P))
+
 
 def get_r_hat(z, config, deep=False):
   # note: should be separate from model code.
@@ -103,107 +112,102 @@ def get_r_hat(z, config, deep=False):
     r_hat = (z + config["radius_earth"]) / config["radius_earth"]
   return r_hat
 
+
 def get_z_surface(lat, lon, config, topo=False):
   return jnp.zeros_like(lat)
 
-  
+
 def evaluate_pressure_temperature(z, lat, config, deep=False):
-  T0E = config["T0E"]
-  T0P = config["T0P"]
   lapse = config["lapse"]
+  K = config["K"]
   T0 = get_T0(config)
   constA = get_constA(config)
   constB = get_constB(config)
   constC = get_constC(config)
-  constH = get_constH(config)
   scaledZ = get_scaledZ(z, config)
-  
-  # note: this can be optimized for numpy so 
+
+  # note: this can be optimized for numpy so
   # scaledZ**2 quantities are not recomputed
-  
+
   tau1 = (constA * lapse / T0 * jnp.exp(lapse * z / T0) +
-         constB * (1.0 - 2.0 * scaledZ**2) * jnp.exp(-scaledZ**2))
+          constB * (1.0 - 2.0 * scaledZ**2) * jnp.exp(-scaledZ**2))
   tau2 = constC * (1.0 - 2.0 * scaledZ**2) * jnp.exp(-scaledZ**2)
-  
-  inttau1 = (constA  * (jnp.exp(lapse * z / T0) - 1.0) +
+
+  inttau1 = (constA * (jnp.exp(lapse * z / T0) - 1.0) +
              constB * z * jnp.exp(-scaledZ**2))
   inttau2 = get_inttau2(z, config)
-  
+
   r_hat = get_r_hat(z, config, deep=deep)
-  
+
   inttermT = ((r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**K -
-               K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**(K + 2))
-  temp = 1.0 / (r_hat**2 * (tau1 - tau2 * inttermT))
-  pressure = config["p0"] * jnp.exp(-config["gravity"]/config["Rgas"]
-                                    * (inttau1 - inttau2 * inttermT))
+              K / (K + 2.0) * (r_hat * jnp.cos(lat)[:, :, :, jnp.newaxis])**(K + 2))
+  temperature = 1.0 / (r_hat**2 * (tau1 - tau2 * inttermT))
+  pressure = config["p0"] * jnp.exp(-config["gravity"] / config["Rgas"] *
+                                    (inttau1 - inttau2 * inttermT))
   return pressure, temperature
+
 
 def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   z_surface = get_z_surface(lat, lon, config, mountain=mountain)
   p_surface = evaluate_pressure_temperature(z_surface[:, :, :, jnp.newaxis],
                                             lat, config, deep=deep)[:, :, :, 0]
   return z_surface, p_surface
-  
 
 
 def evaluate_state(lat, lon, z, config, deep=False, mountain=False, moist=False):
   K = config["K"]
-  T0 = get_T0(config)
-  constH = get_constH(config)
-  constC = get_constC(config)
-  scaledZ = get_scaledZ(z, config)
   inttau2 = get_inttau2(z, config)
   r_hat = get_r_hat(z, deep=deep)
   cos_lat = jnp.cos(lat)[:, :, :, jnp.newaxis]
-  inttermU = ((r_hat * cos_lat)**(K-1.0) -
-               (r_hat * cos_lat)**(K+1.0))
+  inttermU = ((r_hat * cos_lat)**(K - 1.0) -
+              (r_hat * cos_lat)**(K + 1.0))
   pressure, temp = evaluate_pressure_temperature(z, lat, config, deep=deep)
   bigU = (config["gravity"] / config["radius_earth"] *
           inttau2 * inttermU * temp)
-  
+
   if deep:
     rcoslat = config["radius_earth"] * cos_lat
   else:
     rcoslat = (z + config["radius_earth"]) * cos_lat
   solid_body_rotation = config["period_earth"] * rcoslat
-  u = -solid_body_rotation + jnp.sqrt(solid_body_rotation**2 + 
+  u = -solid_body_rotation + jnp.sqrt(solid_body_rotation**2 +
                                       rcoslat * bigU)
   v = jnp.zeros_like(u)
-  
+
   if moist:
     p0 = config["p0"]
     eta = pressure / p0
-    q_vapor = config["moistq0"] * (jnp.exp(-(lat/config["moistqlat"])**4)
-                             * jnp.exp((-(eta - 1.0)*p0/config["moistqp"])**2))
-    Mvap = config["Rvap"]/config["Rgas"]-1.0
+    q_vapor = config["moistq0"] * (jnp.exp(-(lat / config["moistqlat"])**4) *
+                                   jnp.exp((-(eta - 1.0) * p0 / config["moistqp"])**2))
+    Mvap = config["Rvap"] / config["Rgas"] - 1.0
     temp_v = temp / (1.0 + Mvap * q_vapor)
   else:
     q_vapor = jnp.zeros_like(z)
     temp_v = temp
-    
+
   # todo: handle pert
-  
+
   return u, v, temp_v, pressure, q_vapor
 
 
 def great_circle_dist(lat, lon, config):
-  return (1.0/config["pertexpr"] * 
-                      jnp.arccos(jnp.sin(config["pertlat"])
-                                 * jnp.sin(lat) +
-                                 jnp.cos(config["pertlat"]) *
-                                 jnp.cos(lat) *
-                                 jnp.cos(lon - config["pertlon"])))
+  return (1.0 / config["pertexpr"] *
+          jnp.arccos(jnp.sin(config["pertlat"]) *
+                     jnp.sin(lat) +
+                     jnp.cos(config["pertlat"]) *
+                     jnp.cos(lat) *
+                     jnp.cos(lon - config["pertlon"])))
+
 
 def taper_fn(z, config):
   pertz = config["pertz"]
   taper_below_pertz = (1.0 - 3.0 * z**2 / pertz**2 + 2.0 * z**3 / pertz**3)
-  return jnp.where(z < pertz, 
+  return jnp.where(z < pertz,
                    taper_below_pertz,
                    jnp.zeros_like(z))
 
 
 def evalute_exponential(lat, lon, z, config):
-  pertz = config["pertz"]
   greatcircle_dist = great_circle_dist(lat, lon, config)
   taper = taper_fn(z, config)
 
@@ -213,15 +217,12 @@ def evalute_exponential(lat, lon, z, config):
   return jnp.where(greatcircle_dist < 1.0,
                    pert_inside_circle,
                    jnp.zeros_like(z))
-  
+
+
 def evaluate_streamfunction(lat, lon, z, config):
-  pertz = config["pertz"]
   greatcircle_dist = great_circle_dist(lat, lon, config)
   taper = taper_fn(z, config)
   pert_inside_circle = jnp.cos(0.5 * jnp.pi * greatcircle_dist)
   return jnp.where(greatcircle_dist < 1.0,
                    -config["pertu0"] * config["pertr"] * taper * pert_inside_circle**4,
                    jnp.zeros_like(z))
-  
-
-  
