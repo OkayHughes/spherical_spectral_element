@@ -3,6 +3,7 @@ from .spectral import deriv
 from .mesh import mesh_to_cart_bilinear, gen_gll_redundancy
 from .grid_definitions import TOP_FACE, BOTTOM_FACE, FRONT_FACE, BACK_FACE, LEFT_FACE, RIGHT_FACE
 from .se_grid import create_spectral_element_grid
+from .cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from textwrap import dedent
 
 
@@ -203,3 +204,9 @@ def gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_re
   cube_redundancy = gen_gll_redundancy(face_connectivity, vert_redundancy)
   gll_latlon, cube_to_sphere_jacobian = gen_metric_terms_equiangular(face_mask, gll_position, cube_redundancy)
   return generate_metric_terms(gll_latlon, gll_jacobian, cube_to_sphere_jacobian, cube_redundancy, jax=jax)
+
+
+def create_quasi_uniform_grid(nx):
+  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
+  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
+  return gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)

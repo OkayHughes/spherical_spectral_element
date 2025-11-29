@@ -1,7 +1,6 @@
 from spherical_spectral_element.config import jnp, np, DEBUG, jax_unwrapper, jax_wrapper, use_jax
 from spherical_spectral_element.shallow_water.model import get_config_sw, create_state_struct, simulate_sw
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
+from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
 from spherical_spectral_element.operators import inner_prod, sphere_vorticity
 from spherical_spectral_element.assembly import dss_scalar
 from os import makedirs
@@ -12,9 +11,7 @@ if DEBUG:
 
 def test_sw_model():
   nx = 15
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = create_quasi_uniform_grid(nx) 
   config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   u0 = 2.0 * np.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4 / config["gravity"]
@@ -81,9 +78,7 @@ def test_sw_model():
 
 def test_galewsky():
   nx = 61
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = create_quasi_uniform_grid(nx) 
 
   config = get_config_sw(ne=15)
   if use_jax:
