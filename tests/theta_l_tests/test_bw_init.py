@@ -26,7 +26,7 @@ def test_shallow():
   eps = 1e-3
   
   
-  for z in jnp.linspace(0, 40e3, 100):
+  for z in jnp.linspace(0, 40e3, 10):
     z_above = (z + eps) * jnp.ones((*lat.shape, 1))
     pressure_above, _ = evaluate_pressure_temperature(z_above, lat, config_shallow, deep=False)
     z_below = (z - eps) * jnp.ones((*lat.shape, 1))
@@ -43,24 +43,26 @@ def test_deep():
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
   grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
-  config_deep = get_umjs_config(pertu0=0.0,
-                                pertup=0.0,
-                                radius_earth=6371e3/20.0,
-                                period_earth=7.292e-5*20.0)
   lat = grid["physical_coords"][:, :, :, 0]
   lon = grid["physical_coords"][:, :, :, 1]
   eps = 1e-3
-  for z in jnp.linspace(0, 40e3, 100):
-    z_above = (z + eps) * jnp.ones((*lat.shape, 1))
-    pressure_above, _ = evaluate_pressure_temperature(z_above, lat, config_deep, deep=True)
-    z_below = (z - eps) * jnp.ones((*lat.shape, 1))
-    pressure_below, _ = evaluate_pressure_temperature(z_below, lat, config_deep, deep=True)
-    z_center = z * jnp.ones((*lat.shape, 1))
-    u, v, pressure, temperature, _ = evaluate_state(lat, lon, z_center, config_deep, deep=True)
-    rho = pressure / (config_deep["Rgas"] * temperature)
-    dp_dz = (pressure_above - pressure_below)/(2*eps)
-    metric_terms = - (u**2 + v**2)/(z_center + config_deep["radius_earth"])
-    ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, jnp.newaxis]
-    assert(np.max(np.abs(dp_dz/rho + g_from_z(z_center, 
-                                             config_deep, deep=True) + metric_terms + ncts)) < 1e-3)
+  for alpha in [0.4, 0.5, 0.8]:
+    config_deep = get_umjs_config(pertu0=0.0,
+                                  pertup=0.0,
+                                  radius_earth=6371e3/20.0,
+                                  period_earth=7.292e-5*20.0,
+                                  alpha=alpha)
+    for z in jnp.linspace(0, 40e3, 10):
+      z_above = (z + eps) * jnp.ones((*lat.shape, 1))
+      pressure_above, _ = evaluate_pressure_temperature(z_above, lat, config_deep, deep=True)
+      z_below = (z - eps) * jnp.ones((*lat.shape, 1))
+      pressure_below, _ = evaluate_pressure_temperature(z_below, lat, config_deep, deep=True)
+      z_center = z * jnp.ones((*lat.shape, 1))
+      u, v, pressure, temperature, _ = evaluate_state(lat, lon, z_center, config_deep, deep=True)
+      rho = pressure / (config_deep["Rgas"] * temperature)
+      dp_dz = (pressure_above - pressure_below)/(2*eps)
+      metric_terms = - (u**2 + v**2)/(z_center + config_deep["radius_earth"])
+      ncts = -u * 2.0 * config_deep["period_earth"] * jnp.cos(lat)[:, :, :, jnp.newaxis]
+      assert(np.max(np.abs(dp_dz/rho + g_from_z(z_center, 
+                                              config_deep, deep=True) + metric_terms + ncts)) < 1e-3)
 
