@@ -1,6 +1,7 @@
 from ..config import jnp
-from .model_state import init_model_struct
+from .model_state import init_model_struct, init_tracer_struct
 from .infra import get_delta
+from .vertical_coordinate import mass_from_coordinate_midlev, mass_from_coordinate_interface
 
 
 def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
@@ -19,19 +20,21 @@ def z_from_p_monotonic(pressures, p_given_z, eps=1e-5, z_top=80e3):
   return z_guesses
 
 
-def init_model_p_hydro(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_funcs, h_grid, v_grid, config, dims):
+def init_model_p_hydro(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_func, h_grid, v_grid, config, dims):
   lat = h_grid["physical_coords"][:, :, :, 0]
   lon = h_grid["physical_coords"][:, :, :, 0]
   z_surf, pi_surf = z_pi_surf_func(lat, lon)
-  pressures_mid = mass_from_coordinate_midlev(pi_surf, v_grid)
-  pressures_int = mass_from_coordinate_interface(pi_surf, v_grid)
-  z_mid = p_from_z_monotonic(pressures_mid, p_func)
-  dpi = get_delta(pressures_int)
+  p_mid = mass_from_coordinate_midlev(pi_surf, v_grid)
+  p_int = mass_from_coordinate_interface(pi_surf, v_grid)
+  z_mid = z_from_p_monotonic(p_mid, p_func)
+  dpi = get_delta(p_int)
   w_i = 0.0
   phi_i = 0.0
   phi_surf = z_surf * config["gravity"]
-  vtheta = Tv_func(lat, lon, z_mid) * (p0/p_mid)**(config["Rgas"]/config["cp"])
+  vtheta = Tv_func(lat, lon, z_mid) * (config["p0"] / p_mid)**(config["Rgas"] / config["cp"])
   vtheta_dpi = vtheta * dpi
+  u = u_func(lat, lon, z_mid)
+  v = v_func(lat, lon, z_mid)
   initial_state = init_model_struct(jnp.stack((u, v), axis=-1),
                                     vtheta_dpi,
                                     dpi,
@@ -41,5 +44,5 @@ def init_model_p_hydro(z_pi_surf_func, p_func, Tv_func, u_func, v_func, Q_funcs,
                                     h_grid,
                                     dims,
                                     config)
-  tracer_struct = init_tracer_struct(Q_funcs(lat, lon, z_mid))
+  tracer_struct = init_tracer_struct(Q_func(lat, lon, z_mid))
   return initial_state, tracer_struct

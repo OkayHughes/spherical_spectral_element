@@ -7,6 +7,7 @@ def rfold_state(state1, state2, fold_coeff1, fold_coeff2):
                            state1["vtheta_dpi"] * fold_coeff1 + state2("vtheta_dpi") * fold_coeff2,
                            state1["dpi"] * fold_coeff1 + state2["vtheta_dpi"] * fold_coeff2,
                            state1["phi_surf"],
+                           state1["grad_phi_surf"],
                            state1["phi_i"] * fold_coeff1 + state2["phi_i"] * fold_coeff2,
                            state1["w_i"] * fold_coeff1 + state2["w_i"] * fold_coeff2)
 

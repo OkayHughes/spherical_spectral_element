@@ -11,7 +11,7 @@ if DEBUG:
 
 def test_sw_model():
   nx = 15
-  grid, dims = create_quasi_uniform_grid(nx) 
+  grid, dims = create_quasi_uniform_grid(nx)
   config = get_config_sw(alpha=jnp.pi / 4, ne=15)
   u0 = 2.0 * np.pi * config["radius_earth"] / (12.0 * 24.0 * 60.0 * 60.0)
   h0 = 2.94e4 / config["gravity"]
@@ -78,7 +78,7 @@ def test_sw_model():
 
 def test_galewsky():
   nx = 61
-  grid, dims = create_quasi_uniform_grid(nx) 
+  grid, dims = create_quasi_uniform_grid(nx)
 
   config = get_config_sw(ne=15)
   if use_jax:
@@ -126,7 +126,7 @@ def test_galewsky():
   def galewsky_hs(lat, lon):
     return np.zeros_like(lat)
 
-  T = (144 * 3600)/3600
+  T = (144 * 3600) / 3600
   u_init = jax_wrapper(galewsky_wind(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   h_init = jax_wrapper(galewsky_h(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))
   hs_init = jax_wrapper(galewsky_hs(grid["physical_coords"][:, :, :, 0], grid["physical_coords"][:, :, :, 1]))

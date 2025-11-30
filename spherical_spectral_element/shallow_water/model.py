@@ -102,7 +102,7 @@ def advance_step_ssprk3(state0, dt, grid, config, dims):
                                                    2.0 / 3.0 * dt])
 
 
-@partial(jit, static_argnames=["dims", "diffusion", "ne", "end_time", "step_type"])
+# @partial(jit, static_argnames=["dims", "diffusion", "ne", "end_time", "step_type"])
 def simulate_sw(end_time, ne, state_in, grid, config, dims, diffusion=False, step_type="ssprk3"):
   dt = 100.0 * (30.0 / ne)  # todo: automatically calculate CFL from sw dispersion relation
   state_n = state_in

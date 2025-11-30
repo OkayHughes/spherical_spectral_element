@@ -1,14 +1,13 @@
 
 from spherical_spectral_element.config import np, jnp, eps
-from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
-from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
-from spherical_spectral_element.assembly import dss_scalar
-from spherical_spectral_element.operators import sphere_gradient, sphere_divergence, sphere_vorticity, inner_prod
+from spherical_spectral_element.equiangular_metric import create_quasi_uniform_grid
+from spherical_spectral_element.operators import inner_prod
 from spherical_spectral_element.theta_l.operators_3d import (sphere_divergence_3d,
                                                              sphere_gradient_3d,
                                                              sphere_vorticity_3d,
                                                              sphere_vec_laplacian_wk_3d)
 from spherical_spectral_element.theta_l.model_state import dss_scalar_3d
+
 
 def threedify(field, nlev, axis=-1):
   if axis < 0:
@@ -19,30 +18,28 @@ def threedify(field, nlev, axis=-1):
   else:
     shape_out = field.shape
     shape_out.insert(axis, 1)
-  ones_shape = [1 for _ in range(len(field.shape)+1)]
+  ones_shape = [1 for _ in range(len(field.shape) + 1)]
   ones_shape[axis] = nlev
   return field.reshape(shape_out) * jnp.ones(ones_shape)
+
 
 def test_vector_identites():
   nx = 31
   nlev = 3
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = create_quasi_uniform_grid(nx)
   config = {"radius_earth": 1.0}
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   fn_3d = threedify(fn, nlev) * jnp.arange(nlev).reshape((1, 1, 1, -1))
   v = np.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                 jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   v_3d = threedify(v, nlev, axis=-2)
-  
+
   grad = sphere_gradient_3d(fn_3d, grid, config)
   vort = sphere_vorticity_3d(grad, grid, config)
   div = sphere_divergence_3d(v_3d, grid, config)
   for k_idx in range(nlev):
     iprod_vort = inner_prod(vort[:, :, :, k_idx], vort[:, :, :, k_idx], grid)
     assert (jnp.allclose(iprod_vort, 0, atol=eps))
-
 
     discrete_divergence_thm = (inner_prod(v_3d[:, :, :, k_idx, 0], grad[:, :, :, k_idx, 0], grid) +
                                inner_prod(v_3d[:, :, :, k_idx, 1], grad[:, :, :, k_idx, 1], grid) -
@@ -52,17 +49,15 @@ def test_vector_identites():
 
 def test_divergence():
   nx = 31
-  nlev=3
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  nlev = 3
+  grid, dims = create_quasi_uniform_grid(nx)
   config = {"radius_earth": 1.0}
   vec = np.zeros_like(grid["physical_coords"])
   lat = grid["physical_coords"][:, :, :, 0]
   lon = grid["physical_coords"][:, :, :, 1]
   vec[:, :, :, 0] = np.cos(lat)**2 * np.cos(lon)**3
   vec[:, :, :, 1] = np.cos(lat)**2 * np.cos(lon)**3
-  
+
   vec_3d = threedify(vec, nlev, axis=-2)
 
   vort_analytic = (-3.0 * np.cos(lon)**2 * np.sin(lon) * np.cos(lat) +
@@ -82,11 +77,9 @@ def test_divergence():
 def test_analytic_soln():
   nx = 31
   nlev = 3
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = create_quasi_uniform_grid(nx)
   config = {"radius_earth": 1.0}
-  
+
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   fn_3d = threedify(fn, nlev)
   grad_f_numerical = sphere_gradient_3d(fn_3d, grid, config)
@@ -98,16 +91,12 @@ def test_analytic_soln():
     assert (np.max(np.abs(sph_grad_lon - grad_f_numerical[:, :, :, lev_idx, 0])) < 1e-4)
 
 
-
-
 def test_vector_laplacian():
   nx = 31
   nlev = 3
-  face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
-  vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy)
+  grid, dims = create_quasi_uniform_grid(nx)
   vec = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
-                 jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
+                   jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   config = {"radius_earth": 1.0}
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
@@ -119,13 +108,14 @@ def test_vector_laplacian():
     assert ((inner_prod(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
              inner_prod(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)
   vec = jnp.stack((np.cos(grid["physical_coords"][:, :, :, 0])**2,
-                 np.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
+                   np.cos(grid["physical_coords"][:, :, :, 0])**2), axis=-1)
   vec_3d = threedify(vec, nlev, axis=-2)
   laplace_v_wk = sphere_vec_laplacian_wk_3d(vec_3d, grid, config)
   laplace_v_wk = jnp.stack((dss_scalar_3d(laplace_v_wk[:, :, :, :, 0], grid, dims, scaled=False),
                             dss_scalar_3d(laplace_v_wk[:, :, :, :, 1], grid, dims, scaled=False)), axis=-1)
   lap_diff = laplace_v_wk + 3 * (np.cos(2 * grid["physical_coords"][:, :, :, 0]))[:, :, :, np.newaxis, np.newaxis]
-  lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis]**2  # hack to negate pole point
+  # hack to negate pole point
+  lap_diff *= np.cos(grid["physical_coords"][:, :, :, 0])[:, :, :, np.newaxis, np.newaxis]**2
   for lev_idx in range(nlev):
     assert ((inner_prod(lap_diff[:, :, :, lev_idx, 0], lap_diff[:, :, :, lev_idx, 0], grid) +
              inner_prod(lap_diff[:, :, :, lev_idx, 1], lap_diff[:, :, :, lev_idx, 1], grid)) < 1e-5)

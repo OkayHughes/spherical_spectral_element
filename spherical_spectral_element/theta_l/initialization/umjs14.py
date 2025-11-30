@@ -113,7 +113,8 @@ def get_r_hat(z, config, deep=False):
   return r_hat
 
 
-def get_z_surface(lat, lon, config, topo=False):
+def get_z_surface(lat, lon, config, mountain
+                  =False):
   return jnp.zeros_like(lat)
 
 
@@ -151,7 +152,7 @@ def evaluate_pressure_temperature(z, lat, config, deep=False):
 def evaluate_surface_state(lat, lon, config, deep=False, mountain=False):
   z_surface = get_z_surface(lat, lon, config, mountain=mountain)
   p_surface = evaluate_pressure_temperature(z_surface[:, :, :, jnp.newaxis],
-                                            lat, config, deep=deep)[:, :, :, 0]
+                                            lat, config, deep=deep)[0][:, :, :, 0]
   return z_surface, p_surface
 
 

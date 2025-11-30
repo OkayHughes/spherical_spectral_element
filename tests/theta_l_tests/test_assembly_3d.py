@@ -1,8 +1,8 @@
-from spherical_spectral_element.config import np, npt, jax_wrapper, use_jax
+from spherical_spectral_element.config import np, npt, use_jax
 from spherical_spectral_element.cubed_sphere import gen_cube_topo, gen_vert_redundancy
 from spherical_spectral_element.equiangular_metric import gen_metric_from_topo
-from spherical_spectral_element.assembly import dss_scalar_for, dss_scalar_jax, dss_scalar_sparse, dss_scalar
 from spherical_spectral_element.theta_l.model_state import dss_scalar_3d, dss_scalar_3d_for
+
 
 def test_dss_3d():
   nx = 3
@@ -31,8 +31,10 @@ def test_dss_equiv_3d_rand():
   nlev = 5
   face_connectivity, face_mask, face_position, face_position_2d = gen_cube_topo(nx)
   vert_redundancy = gen_vert_redundancy(nx, face_connectivity, face_position)
-  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=False)
-  grid_jax, dims_jax = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d, vert_redundancy, jax=use_jax)
+  grid, dims = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
+                                    vert_redundancy, jax=False)
+  grid_jax, dims_jax = gen_metric_from_topo(face_connectivity, face_mask, face_position_2d,
+                                            vert_redundancy, jax=use_jax)
   for _ in range(20):
     fn_rand = np.random.uniform(size=(*grid["physical_coords"][:, :, :, 1].shape, nlev))
     assert (np.allclose(dss_scalar_3d(fn_rand, grid_jax, dims_jax), dss_scalar_3d_for(fn_rand, grid, dims)))

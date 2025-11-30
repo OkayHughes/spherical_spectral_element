@@ -7,8 +7,7 @@ from spherical_spectral_element.operators import sphere_divergence_wk, sphere_gr
 
 def test_vector_identites():
   nx = 31
-  grid, dims = create_quasi_uniform_grid(nx) 
-
+  grid, dims = create_quasi_uniform_grid(nx)
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   grad = sphere_gradient(fn, grid)
   vort = sphere_vorticity(grad, grid)
@@ -27,7 +26,7 @@ def test_vector_identites():
 
 def test_divergence():
   nx = 31
-  grid, dims = create_quasi_uniform_grid(nx) 
+  grid, dims = create_quasi_uniform_grid(nx)
   vec = np.zeros_like(grid["physical_coords"])
   lat = grid["physical_coords"][:, :, :, 0]
   lon = grid["physical_coords"][:, :, :, 1]
@@ -49,7 +48,7 @@ def test_divergence():
 
 def test_analytic_soln():
   nx = 31
-  grid, dims = create_quasi_uniform_grid(nx) 
+  grid, dims = create_quasi_uniform_grid(nx)
   fn = jnp.cos(grid["physical_coords"][:, :, :, 1]) * jnp.cos(grid["physical_coords"][:, :, :, 0])
   grad_f_numerical = sphere_gradient(fn, grid)
   sph_grad_wk = sphere_gradient_wk_cov(fn, grid)
@@ -68,7 +67,7 @@ def test_analytic_soln():
 
 def test_vector_laplacian():
   nx = 31
-  grid, dims = create_quasi_uniform_grid(nx) 
+  grid, dims = create_quasi_uniform_grid(nx)
   v = jnp.stack((jnp.cos(grid["physical_coords"][:, :, :, 0]),
                  jnp.cos(grid["physical_coords"][:, :, :, 0])), axis=-1)
   laplace_v_wk = sphere_vec_laplacian_wk(v, grid)

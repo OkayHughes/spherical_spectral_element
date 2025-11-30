@@ -32,6 +32,7 @@ if use_jax:
     return
 
   from jax.tree_util import Partial as partial
+
   def vmap_1d_apply(func, vector, in_axis, out_axis):
       return jax.vmap(func, in_axes=(in_axis), out_axes=(out_axis))(vector)
 
@@ -51,6 +52,7 @@ else:
     assert should_be_true
 
   from functools import partial
+
   def vmap_1d_apply(func, scalar, in_axis, out_axis):
     levs = []
     for lev_idx in range(scalar.shape[in_axis]):
